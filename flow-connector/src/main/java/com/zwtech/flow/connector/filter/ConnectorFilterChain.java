@@ -1,7 +1,5 @@
 package com.zwtech.flow.connector.filter;
 
-import org.example.core.connector.RequestSpec;
-import org.example.core.connector.ResponseSpec;
 import reactor.core.publisher.Mono;
 
 /**
@@ -9,5 +7,5 @@ import reactor.core.publisher.Mono;
  */
 public interface ConnectorFilterChain {
 
-    Mono<ResponseSpec> filter(RequestSpec spec);
+    <REQ, RESP> Mono<ExecutionEnvelope<REQ, RESP>> filter(ExecutionEnvelope<REQ, RESP> envelope);
 }

@@ -1,14 +1,10 @@
 package com.zwtech.flow.connector.filter;
 
-import org.example.core.connector.RequestSpec;
-import org.example.core.connector.ResponseSpec;
-import org.pf4j.ExtensionPoint;
 import reactor.core.publisher.Mono;
 
 /**
  * @author renc
  */
-public interface ConnectorFilter extends ExtensionPoint {
-
-    Mono<ResponseSpec> filter(RequestSpec spec, ConnectorFilterChain chain);
+public interface ConnectorFilter<REQ, RESP> {
+    Mono<ExecutionEnvelope<REQ, RESP>> filter(ExecutionEnvelope<REQ, RESP> envelope, ConnectorFilterChain chain);
 }
