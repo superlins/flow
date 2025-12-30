@@ -1,13 +1,14 @@
 package com.zwtech.flow.connector.factory;
 
-import org.example.core.connector.Connector;
-import org.example.core.connector.RequestSpec;
-import org.example.core.connector.ResponseSpec;
+import com.zwtech.flow.connector.Connector;
+import com.zwtech.flow.connector.RequestSpec;
+import com.zwtech.flow.connector.ResponseSpec;
+import com.zwtech.flow.domain.datasource.ApiDatasource;
 
 /**
  * @author renc
  */
-public interface ConnectorFactory<C extends ConnectorConfig, REQ extends RequestSpec, RESP extends ResponseSpec> extends Nameable {
+public interface ConnectorFactory<REQ extends RequestSpec, RESP extends ResponseSpec> {
 
-    Connector<REQ, RESP> newInstance(C config);
+    Connector<REQ, RESP> create(ApiDatasource apiDatasource);
 }

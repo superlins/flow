@@ -1,8 +1,14 @@
 package com.zwtech.flow.connector.factory.r2dbc;
 
-import org.example.core.connector.Connector;
+import com.zwtech.flow.connector.Connector;
+import com.zwtech.flow.connector.ExecutionAttributes;
 import org.springframework.r2dbc.core.DatabaseClient;
 import reactor.core.publisher.Mono;
+import tools.jackson.core.type.TypeReference;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
+
+import java.util.List;
 
 public class R2dbcConnector implements Connector<R2dbcRequestSpec, R2dbcResponseSpec> {
 
@@ -13,14 +19,19 @@ public class R2dbcConnector implements Connector<R2dbcRequestSpec, R2dbcResponse
     }
 
     @Override
-    public Mono<R2dbcResponseSpec> connect(R2dbcRequestSpec spec) {
-        DatabaseClient.GenericExecuteSpec exec = databaseClient.sql(spec.getSql());
+    public Mono<R2dbcResponseSpec> connect(R2dbcRequestSpec spec, ExecutionAttributes attributes) {
+        var exec = databaseClient.sql(spec.getSql());
         for (int i = 0; i < spec.getParameters().size(); i++) {
             exec = exec.bind(i, spec.getParameters().get(i));
         }
 
-        return exec.fetch().all()
-            .collectList()
-            .map(rows -> new R2dbcResponseSpec().rows(rows));
+        return exec.fetch()
+                .all()
+                .collectList()
+                .map(rows -> {
+                    var jsonRows = new ObjectMapper().convertValue(rows, new TypeReference<List<JsonNode>>() {
+                    });
+                    return R2dbcResponseSpec.builder().rows(jsonRows).build();
+                });
     }
 }

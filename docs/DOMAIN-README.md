@@ -1,5 +1,12 @@
 ## Domain Driver Design - Domain Models
 
+<!-- TOC -->
+  * [Domain Driver Design - Domain Models](#domain-driver-design---domain-models)
+    * [ApiService](#apiservice)
+    * [ApiDatasource](#apidatasource)
+    * [ApiWorkflow](#apiworkflow)
+<!-- TOC -->
+
 ### ApiService
 
 对外暴露 http 端点，处理用户请求/响应，schema 验证，对内引用一个 ApiDatasource 或一个 ApiWorkflow
@@ -28,11 +35,17 @@
         "type": "string",
         "description": "params algorithm",
         "default": "md5",
-        "enum": [ "md5", "sha256", "sm3" ]
+        "enum": [
+          "md5",
+          "sha256",
+          "sm3"
+        ]
       }
     },
     "required": [
-      "name", "phone", "idcardno"
+      "name",
+      "phone",
+      "idcardno"
     ]
   },
   "output": {
@@ -44,7 +57,7 @@
       },
       "score2": {
         "type": "string",
-        "description": "user score2",
+        "description": "user score2"
       }
     }
   },
@@ -63,113 +76,89 @@
 
 遵循 OpenAPI 风格
 
-> GET
+> POST
 
 ```json
 {
-  "id": "ds-http-get-user",
-  "name": "Get User Profile (HTTP GET)",
+  "id": "ds-http-post-create-order",
+  "name": "Create Order (HTTP POST)",
   "type": "http",
   "version": "1",
+  "description": "DataSource for creating orders",
   "specification": {
-    "openapi": "3.1.0",
-    "info": {
-      "title": "DataSource: Get User",
-      "version": "1.0",
-      "description": "DataSource for user profile lookup"
-    },
-    "servers": [
-      {
-        "url": "https://api.example.com/v2",
-        "description": "Production server"
-      }
-    ],
-    "paths": [
-      {
-        "/users/{userId}": {
-          "get": {
-            "summary": "Fetch user profile by ID",
-            "operationId": "getUserProfile",
-            "parameters": [
-              {
-                "name": "userId",
-                "in": "path",
-                "required": true,
-                "schema": {
-                  "type": "string"
-                },
-                "description": "User unique ID"
+    "url": "https://api.example.com/v2/orders",
+    "path": "/orders",
+    "method": "POST",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "X-Internal-Token": {
+          "type": "string",
+          "description": "User token",
+          "x-in": "header"
+        },
+        "userId": {
+          "type": "string",
+          "description": "User ID",
+          "x-in": "body"
+        },
+        "items": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "productId": {
+                "type": "string"
               },
-              {
-                "name": "includeOrders",
-                "in": "query",
-                "required": false,
-                "schema": {
-                  "type": "boolean",
-                  "default": false
-                },
-                "description": "Whether to include order history"
+              "quantity": {
+                "type": "integer",
+                "minimum": 1
               },
-              {
-                "name": "apikey",
-                "in": "query",
-                "required": true,
-                "schema": {
-                  "type": "string",
-                  "default": "{{secrets.thirdparty.api_key}}"  // Credentials 动态配置
-                },
-                "description": "Whether to include order history",
-                "x-internal": true  // 自定义属性 - 默认值
+              "secret": {
+                "type": "string",
+                "const": "apikey",
+                "x-internal": true
+                // 关键标记：内部常量
+              },
+              "uid": {
+                "type": "string",
+                "default": "user1",
+                "x-internal": true
+                // 关键标记：默认值
               }
-            ],
-            "responses": {
-              "200": {
-                "description": "User profile retrieved successfully",
-                "content": {
-                  "application/json": {
-                    "schema": {
-                      "type": "object",
-                      "properties": {
-                        "id": {
-                          "type": "string"
-                        },
-                        "name": {
-                          "type": "string"
-                        },
-                        "email": {
-                          "type": "string",
-                          "format": "email"
-                        },
-                        "orders": {
-                          "type": "array",
-                          "items": {
-                            "type": "object",
-                            "properties": {
-                              "orderId": {
-                                "type": "string"
-                              },
-                              "amount": {
-                                "type": "number"
-                              }
-                            }
-                          }
-                        }
-                      }
-                    }
-                  }
-                }
-              },
-              "404": {
-                "description": "User not found"
-              }
-            }
+            },
+            "required": [
+              "productId",
+              "quantity"
+            ]
           }
         }
+      },
+      "required": [
+        "userId",
+        "items"
+      ]
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "orderId": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "pending",
+            "confirmed"
+          ]
+        },
+        "totalAmount": {
+          "type": "number"
+        }
       }
-    ]
+    }
   },
   "connection": {
-    
     // http config
     "connectionTimeout": "PT5S",
     "responseTimeout": "PT10S",
@@ -177,12 +166,10 @@
     "compressionEnabled": false,
     "certVerifyDisabled": false,
     "timeoutMs": 5000,
-    
     // retry config
     "retry": {
       "maxAttempts": 1
     },
-    
     // rate limiter config
     "rateLimiter": {
     }
@@ -195,135 +182,6 @@
       "id": "logging"
     }
   ],
-  "tags": [
-    "users"
-  ]
-}
-```
-
-> POST
-
-```json
-{
-  "id": "ds-http-post-create-order",
-  "name": "Create Order (HTTP POST)",
-  "type": "http",
-  "version": "1",
-  "specification": {
-    "openapi": "3.1.0",
-    "info": {
-      "title": "DataSource: POST Order",
-      "version": "1.0",
-      "description": "DataSource for create a order"
-    },
-    "servers": [
-      {
-        "url": "https://api.example.com/v2"
-      }
-    ],
-    "paths": [
-      {
-        "/orders": {
-          "post": {
-            "operationId": "createOrder",
-            "parameters": [
-              {
-                "name": "X-Internal-Token",
-                "in": "header",
-                "required": true,
-                "schema": {"type": "string"},
-                "description": "User token"
-              }
-            ],
-            "requestBody": {
-              "required": true,
-              "content": {
-                "application/json": {
-                  "schema": {
-                    "type": "object",
-                    "properties": {
-                      "userId": {
-                        "type": "string"
-                      },
-                      "items": {
-                        "type": "array",
-                        "items": {
-                          "type": "object",
-                          "properties": {
-                            "productId": {
-                              "type": "string"
-                            },
-                            "quantity": {
-                              "type": "integer",
-                              "minimum": 1
-                            },
-                            "secret": {
-                              "type": "string",
-                              "const": "apikey",
-                              "x-internal": true  // 关键标记：内部常量
-                            },
-                            "uid": {
-                              "type": "string",
-                              "default": "user1",
-                              "x-internal": true  // 关键标记：默认值
-                            }
-                          },
-                          "required": [
-                            "productId",
-                            "quantity"
-                          ]
-                        }
-                      }
-                    },
-                    "required": [
-                      "userId",
-                      "items"
-                    ]
-                  }
-                }
-              }
-            },
-            "responses": {
-              "201": {
-                "description": "Order created",
-                "content": {
-                  "application/json": {
-                    "schema": {
-                      "type": "object",
-                      "properties": {
-                        "orderId": {
-                          "type": "string"
-                        },
-                        "status": {
-                          "type": "string",
-                          "enum": [
-                            "pending",
-                            "confirmed"
-                          ]
-                        },
-                        "totalAmount": {
-                          "type": "number"
-                        }
-                      }
-                    }
-                  }
-                }
-              },
-              "400": {
-                "description": "Invalid input"
-              }
-            }
-          }
-        }
-      }
-    ]
-  },
-  "connection": {
-    "timeoutMs": 10000,
-    "retry": {
-      "maxAttempts": 1
-    }
-  },
   "tags": [
     "post"
   ]
