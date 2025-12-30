@@ -1,11 +1,10 @@
 package com.zwtech.flow.connector;
 
-import org.example.core.serviceregistry.ServiceRegistry;
+import com.zwtech.flow.core.ExecutionExchange;
+import com.zwtech.flow.domain.model.apidatasource.ApiDatasource;
 import reactor.core.publisher.Mono;
 
 public interface ConnectorAdapter {
 
-    boolean supports(String type);
-
-    Mono<Void> handle(ServiceRegistry registry, RequestContext context);
+    Mono<ExecutionExchange> execute(ExecutionExchange exchange, ApiDatasource datasource);
 }

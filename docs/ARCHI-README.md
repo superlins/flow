@@ -2,7 +2,7 @@
 
 <!-- TOC -->
 * [Archi](#archi)
-  * [职能](#职能)
+  * [Component](#component)
     * [ApiService](#apiservice)
     * [ApiDatasource](#apidatasource)
       * [ExecutionExchange](#executionexchange)
@@ -13,24 +13,24 @@
       * [ConnectorFactory](#connectorfactory)
       * [ConnectorFilter](#connectorfilter)
       * [ConnectorFilterChain](#connectorfilterchain)
-  * [模式](#模式)
-    * [基于函数式调用模型](#基于函数式调用模型)
-    * [基于共享上下文调用模型](#基于共享上下文调用模型)
+  * [Domain Model](#domain-model)
+    * [ApiService](#apiservice-1)
+    * [ApiDatasource](#apidatasource-1)
 <!-- TOC -->
 
-## 职能
+## Component
 
 ```text
 ServerHttpRequest
 + ServiceInputSchema
    ↓
-ServiceBinder
+DataBinder
    ↓
 Service.ExecutionContext.input
 + Service.DerivedContext
 + DatasourceInputSchema
    ↓
-DatasourceBinder
+DataBinder
    ↓
 Datasource.ExecutionContext.input
    ↓ (ConnectorAdapter)
@@ -45,12 +45,12 @@ Connector
 xxResponseSpec
 + DatasourceOutputSchema
    ↓
-DatasourceBinder
+DataBinder
    ↓
 Datasource.ExecutionContext.output
 + Datasource.DerivedContext
    ↓
-ServiceContext.output
+Service.ExecutionContext.output
 ```
 
 ### ApiService
@@ -132,48 +132,295 @@ public interface ConnectorFilterChain {
 }
 ```
 
+## Domain Model
 
-## 模式
+### ApiService
 
-### 基于函数式调用模型
+一个逻辑服务单元，处理用户请求/响应并进行 schema 验证，对内引用一个 ApiDatasource
 
-```java
-Mono<ResponseSpec> filter(RequestSpec spec, Chain chain);
+```json
+{
+  "id": "",
+  "name": "A online api-service",
+  "datasource": "ds-http-post-create-order",
+  "enabled": true,
+  "input": {
+    "type": "object",
+    "properties": {
+      "name": {
+        "type": "string",
+        "description": "user name"
+      },
+      "phone": {
+        "type": "string",
+        "description": "user phone",
+        "x-internal-map": "mobile"
+      },
+      "idcardno": {
+        "type": "string",
+        "description": "user idcardno"
+      },
+      "alg": {
+        "type": "string",
+        "description": "params algorithm",
+        "default": "md5",
+        "enum": [
+          "md5",
+          "sha256",
+          "sm3"
+        ]
+      }
+    },
+    "required": [
+      "name",
+      "phone",
+      "idcardno"
+    ]
+  },
+  "output": {
+    "type": "object",
+    "properties": {
+      "score1": {
+        "type": "integer",
+        "description": "user score1"
+      },
+      "score2": {
+        "type": "string",
+        "description": "user score2"
+      }
+    }
+  },
+  "description": "",
+  "tags": [
+    "post"
+  ]
+}
 ```
 
-执行顺序：
+### ApiDatasource
 
-```text
-filterA.before (specA)
-  → filterB.before (specB)
-    → filterC.before (specC)
-      → connector.execute(specC)
-    ← filterC.after (resp)
-  ← filterB.after (resp)
-← filterA.after (resp)
+常见的 HTTP、RPC、JDBC、NoSQL 等 “契约模型” 抽象，“统一抽象 + 类型特化”；连接池、超时、重试、认证、限流；可测试、可验证
+
+- HTTP
+
+> POST
+
+```json
+{
+  "id": "ds-http-post-create-order",
+  "name": "Create Order (HTTP POST)",
+  "type": "http",
+  "version": "1",
+  "description": "DataSource for creating orders",
+  "specification": {
+    "url": "https://api.example.com/v2",
+    "path": "/orders",
+    "method": "POST",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "X-Internal-Token": {
+          "type": "string",
+          "description": "User token",
+          "x-internal-in": "header"
+        },
+        "userId": {
+          "type": "string",
+          "description": "User ID",
+          "x-internal-in": "body"
+        },
+        "items": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "productId": {
+                "type": "string"
+              },
+              "quantity": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "secret": {
+                "type": "string",
+                "const": "apikey",
+                "x-internal-const": "apikey"
+              },
+              "uid": {
+                "type": "string",
+                "default": "user1",
+                "x-internal-default": "user1"
+              }
+            },
+            "required": [
+              "productId",
+              "quantity"
+            ]
+          }
+        }
+      },
+      "required": [
+        "userId",
+        "items"
+      ]
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "orderId": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "pending",
+            "confirmed"
+          ]
+        },
+        "totalAmount": {
+          "type": "number"
+        }
+      }
+    }
+  },
+  "connection": {
+    "connectionTimeout": "PT5S",
+    "responseTimeout": "PT10S",
+    "retryDisabled": false,
+    "compressionEnabled": false,
+    "certVerifyDisabled": false,
+    "timeoutMs": 5000,
+    "retry": {
+      "maxAttempts": 1
+    },
+    "rateLimiter": {
+    }
+  },
+  "extension": [
+    {
+      "id": "oauth2-enricher"
+    },
+    {
+      "id": "logging"
+    }
+  ],
+  "tags": [
+    "post"
+  ]
+}
 ```
 
-在 filterA.after 阶段，我们无法判断其拿到的 httpRequestSpec，和 connector 实际使用的 specC，是不是同一个。 
-specX 是当前调用栈这一层的局部变量，filterB、filterC 一定会新建自己的 RequestSpec，并把它们传给更深一层。但这些新的 RequestSpec，
-不会回传给 filterA，同样不会覆盖 filterA 持有的 specA，所以在 filterA.after 里只能看到 specA。
+- R2DBC
 
-即 filterA 看到的是 “我当初构造的请求” 而不是 “最终被发出去的请求”，这种设计 “牺牲 after 阶段对最终请求形态的感知能力”
+遵循 SQL + JsonSchema 参数绑定风格
 
-### 基于共享上下文调用模型
-
-```java
-Mono<Void> filter(ExecutionExchange exchange, Chain chain);
+```json
+{
+  "id": "ds-mysql-user-orders",
+  "name": "Get User Orders from MySQL",
+  "type": "mysql",
+  "version": "1",
+  "specification": {
+    "sql": "SELECT order_id AS orderId, product_name AS product, amount, created_at AS createdAt FROM orders WHERE user_id = :userId ORDER BY created_at DESC LIMIT :limit",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string"
+        },
+        "limit": {
+          "type": "integer",
+          "default": 10,
+          "maximum": 100
+        }
+      },
+      "required": [
+        "userId"
+      ]
+    },
+    "outputSchema": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "orderId": {
+            "type": "string"
+          },
+          "product": {
+            "type": "string"
+          },
+          "amount": {
+            "type": "number"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      }
+    }
+  },
+  "connection": {
+    "host": "prod-mysql.cluster-xxx.us-east-1.rds.amazonaws.com",
+    "port": 3306,
+    "database": "order_db",
+    "username": "{{secrets.mysql_order_reader_user}}",
+    "password": "{{secrets.mysql_order_reader_pwd}}",
+    "ssl": true,
+    "poolSize": 5
+  }
+}
 ```
 
-请求唯一的 ExecutionExchange 可变对象 “事实演进”：
+- Redis
 
-1.	用户输入（事实 0）
-2.	filterA 补充（事实 1）
-3.	filterB 改写（事实 2）
-4.	filterC 路由 / 规范化（事实 3）
-5.	Connector 实际执行（最终事实）
+遵循 Command + JsonSchema 参数绑定风格
 
-只有第 5 步，才是 “真实发生的事实”，而前面每一步，只是对 “将要发生的事实” 的一次修订
-
-Exchange 模型不是让 “靠前 filter 看到靠后 filter 的内部变量”，而是让所有 filter 面对的是 “同一个逻辑上的请求实体”，只是这个实体在不断被修订
+```json
+{
+  "id": "ds-redis-user-session",
+  "name": "Get User Session from Redis",
+  "type": "redis",
+  "version": "1",
+  "specification": {
+    "command": "HGETALL session:{{sessionId}}",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "sessionId": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "sessionId"
+      ]
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string"
+        },
+        "loginTime": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "permissions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  },
+  "connection": {
+    "host": "redis-prod.example.com",
+    "port": 6379,
+    "password": "{{secrets.redis_auth}}",
+    "useSsl": true,
+    "timeoutMs": 2000
+  }
+}
+```
 

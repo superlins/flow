@@ -8,5 +8,5 @@ import reactor.core.publisher.Mono;
 @FunctionalInterface
 public interface Connector<REQ extends RequestSpec, RESP extends ResponseSpec> {
 
-    Mono<RESP> connect(REQ request);
+    Mono<RESP> connect(REQ request, ExecutionAttributes attributes);
 }

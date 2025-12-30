@@ -1,13 +1,11 @@
 package com.zwtech.flow.connector.factory.http;
 
-import org.example.core.connector.factory.ConnectorConfig;
-
 import java.time.Duration;
 
 /**
  * @author renc
  */
-public final class HttpConnectorConfig extends ConnectorConfig {
+public final class HttpConnectorConfig {
 
     private Duration connectionTimeout = Duration.ofSeconds(5);
 
