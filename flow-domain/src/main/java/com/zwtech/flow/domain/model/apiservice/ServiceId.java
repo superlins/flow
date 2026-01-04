@@ -1,16 +1,16 @@
 package com.zwtech.flow.domain.model.apiservice;
 
+import com.zwtech.flow.domain.shared.ValueObject;
 import org.springframework.util.Assert;
 
-/**
- * @author renc
- */
-public final class ServiceId {
+import java.util.Objects;
+
+public final class ServiceId implements ValueObject<ServiceId> {
 
     private final String value;
 
     public ServiceId(String value) {
-        Assert.hasText(value, "serviceId must not be blank");
+        Assert.hasText(value, "ApiServiceId must not be blank");
         this.value = value;
     }
 
@@ -19,22 +19,17 @@ public final class ServiceId {
     }
 
     @Override
-    public boolean equals(Object o) {
-        if (o == null || getClass() != o.getClass()) return false;
+    public boolean sameValueAs(ServiceId other) {
+        return other != null && this.value.equals(other.value);
+    }
 
-        ServiceId serviceId = (ServiceId) o;
-        return value.equals(serviceId.value);
+    @Override
+    public boolean equals(Object o) {
+        return this == o || (o instanceof ServiceId that && sameValueAs(that));
     }
 
     @Override
     public int hashCode() {
-        return value.hashCode();
-    }
-
-    @Override
-    public String toString() {
-        return "ServiceId{" +
-                "value='" + value + '\'' +
-                '}';
+        return Objects.hash(value);
     }
 }

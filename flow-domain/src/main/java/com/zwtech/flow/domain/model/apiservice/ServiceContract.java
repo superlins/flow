@@ -1,45 +1,46 @@
 package com.zwtech.flow.domain.model.apiservice;
 
-import com.zwtech.flow.domain.shared.JsonSchema;
-import com.zwtech.flow.domain.model.apidatasource.DatasourceContract;
+import com.zwtech.flow.domain.shared.ValueObject;
 import org.springframework.util.Assert;
+
+import java.util.Objects;
 
 /**
  * @author renc
  */
-public final class ServiceContract {
-    private final JsonSchema inputSchema;
-    private final JsonSchema outputSchema;
+public final class ServiceContract implements ValueObject<ServiceContract> {
+    private final String inputSchema;
+    private final String outputSchema;
 
-    public ServiceContract(JsonSchema inputSchema, JsonSchema outputSchema) {
-        Assert.notNull(inputSchema, "inputSchema must not be null");
-        Assert.notNull(outputSchema, "outputSchema must not be null");
+    public ServiceContract(String inputSchema, String outputSchema) {
+        Assert.hasText(inputSchema, "ApiService inputSchema must not be blank");
+        Assert.hasText(outputSchema, "ApiService outputSchema must not be blank");
         this.inputSchema = inputSchema;
         this.outputSchema = outputSchema;
     }
 
-    public JsonSchema inputSchema() {
+    public String inputSchema() {
         return inputSchema;
     }
 
-    public JsonSchema outputSchema() {
+    public String outputSchema() {
         return outputSchema;
     }
 
-    /**
-     * 领域规则：
-     * - ApiService 的输入必须能满足 Datasource 的输入要求
-     * - BindingSpec 中引用的字段必须存在
-     */
-    public void assertCompatibleWith(DatasourceContract datasourceContract,
-                                     BindingSpec bindingSpec) {
+    @Override
+    public boolean sameValueAs(ServiceContract other) {
+        return other != null
+               && inputSchema.equals(other.inputSchema)
+               && outputSchema.equals(other.outputSchema);
+    }
 
-        Assert.notNull(datasourceContract, "datasourceContract must not be null");
-        Assert.notNull(bindingSpec, "bindingSpec must not be null");
+    @Override
+    public boolean equals(Object o) {
+        return this == o || (o instanceof ServiceContract that && sameValueAs(that));
+    }
 
-        inputSchema.assertSatisfy(
-                datasourceContract.inputSchema(),
-                bindingSpec
-        );
+    @Override
+    public int hashCode() {
+        return Objects.hash(inputSchema, outputSchema);
     }
 }

@@ -1,5 +1,6 @@
 package com.zwtech.flow.domain.model.apidatasource;
 
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 /**
@@ -7,6 +8,11 @@ import reactor.core.publisher.Mono;
  */
 public interface ApiDatasourceRepository {
 
-    Mono<ApiDatasource> find(DatasourceId id);
-    Mono<Void> save(ApiDatasource datasource);
+    Mono<ApiDatasource> findById(DatasourceId id);
+
+    Flux<ApiDatasource> findByKey(String key);
+
+    Mono<ApiDatasource> save(ApiDatasource datasource);
+
+    Mono<Boolean> isReferenced(DatasourceId id);
 }
