@@ -8,5 +8,6 @@ import reactor.core.publisher.Mono;
 public interface ApiDatasourceRepository {
 
     Mono<ApiDatasource> find(DatasourceId id);
+
     Mono<Void> save(ApiDatasource datasource);
 }

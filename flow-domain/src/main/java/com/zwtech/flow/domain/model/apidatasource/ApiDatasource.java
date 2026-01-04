@@ -4,66 +4,70 @@ import com.zwtech.flow.domain.shared.DomainEntity;
 import org.springframework.util.Assert;
 
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
 
 public final class ApiDatasource implements DomainEntity<ApiDatasource> {
 
-    private final DatasourceId datasourceId;
-    private final DatasourceVersion version;
+    private final DatasourceId id;
+    private final DatasourceType type;
+    private final DatasourceContract contract;
     private DatasourceStatus status;
 
-    private final DatasourceContract contract;
-    private final DatasourceEndpoint endpoint;
+    private final List<Object> domainEvents = new ArrayList<>();
 
-    private final String name;
-    private final String description;
+    private String name;
+    private String description;
 
     private final Instant createdAt;
     private Instant updatedAt;
 
-    public ApiDatasource(
-            DatasourceId datasourceId,
-            DatasourceVersion version,
-            DatasourceContract contract,
-            DatasourceEndpoint endpoint,
-            String name,
-            String description
+    private ApiDatasource(
+            DatasourceId id,
+            DatasourceType type,
+            DatasourceContract contract
     ) {
-        Assert.notNull(datasourceId, "datasourceId must not be null");
-        Assert.notNull(version, "version must not be null");
-        Assert.notNull(contract, "contract must not be null");
-        Assert.notNull(endpoint, "endpoint must not be null");
-
-        this.datasourceId = datasourceId;
-        this.version = version;
+        this.id = id;
+        this.type = type;
         this.contract = contract;
-        this.endpoint = endpoint;
+        this.status = DatasourceStatus.DISABLED;
 
-        this.name = name;
-        this.description = description;
-
-        this.status = DatasourceStatus.ENABLED;
         this.createdAt = Instant.now();
         this.updatedAt = this.createdAt;
     }
 
+    public static ApiDatasource create(
+            DatasourceId id,
+            DatasourceType type,
+            DatasourceContract contract
+    ) {
+        Assert.notNull(id, "DatasourceId must not be null");
+        Assert.notNull(type, "DatasourceType must not be null");
+        Assert.notNull(contract, "DatasourceContract must not be null");
+
+        ApiDatasource ds = new ApiDatasource(id, type, contract);
+        ds.domainEvents.add(new ApiDatasourceCreatedEvent(id));
+        return ds;
+    }
+
     /* ========= Domain Behavior ========= */
 
-    public void disable() {
-        this.status = DatasourceStatus.DISABLED;
-        touch();
-    }
-
     public void enable() {
+        if (this.status == DatasourceStatus.ENABLED) {
+            return;
+        }
         this.status = DatasourceStatus.ENABLED;
+        domainEvents.add(new ApiDatasourceEnabledEvent(id));
         touch();
     }
 
-    /**
-     * 核心领域能力：
-     * 提供契约给 ApiService 校验使用
-     */
-    public DatasourceContract exposeContract() {
-        return contract;
+    public void disable() {
+        if (this.status == DatasourceStatus.DISABLED) {
+            return;
+        }
+        this.status = DatasourceStatus.DISABLED;
+        domainEvents.add(new ApiDatasourceDisabledEvent(id));
+        touch();
     }
 
     private void touch() {
@@ -71,26 +75,35 @@ public final class ApiDatasource implements DomainEntity<ApiDatasource> {
     }
 
     /* ========= Getters ========= */
-
-    public DatasourceId datasourceId() {
-        return datasourceId;
+    public boolean isEnabled() {
+        return status == DatasourceStatus.ENABLED;
     }
 
-    public DatasourceVersion version() {
-        return version;
+    public DatasourceId id() {
+        return id;
+    }
+
+    public DatasourceType type() {
+        return type;
+    }
+
+    public DatasourceContract contract() {
+        return contract;
     }
 
     public DatasourceStatus status() {
         return status;
     }
 
-    public DatasourceEndpoint endpoint() {
-        return endpoint;
+    public List<Object> pullDomainEvents() {
+        List<Object> events = List.copyOf(domainEvents);
+        domainEvents.clear();
+        return events;
     }
 
     @Override
     public boolean sameIdentityAs(ApiDatasource other) {
-        return other != null && datasourceId.sameValueAs(other.datasourceId);
+        return other != null && this.id.sameValueAs(other.id);
     }
 
     @Override
@@ -100,6 +113,6 @@ public final class ApiDatasource implements DomainEntity<ApiDatasource> {
 
     @Override
     public int hashCode() {
-        return datasourceId.hashCode();
+        return id.hashCode();
     }
 }

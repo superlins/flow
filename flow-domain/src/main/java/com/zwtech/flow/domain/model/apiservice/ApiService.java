@@ -1,112 +1,119 @@
 package com.zwtech.flow.domain.model.apiservice;
 
-import com.zwtech.flow.domain.model.apidatasource.DatasourceContract;
+import com.zwtech.flow.domain.model.apidatasource.DatasourceId;
+import com.zwtech.flow.domain.shared.DomainEntity;
 import org.springframework.util.Assert;
 
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Objects;
 
 /**
+ * 契约 + 绑定规则 + 一个 Datasource 引用 = ApiService，BindingSpec = 契约之间的数据流声明
+ *
  * @author renc
  */
-public final class ApiService {
+public final class ApiService implements DomainEntity<ApiService> {
 
-    private final ServiceId serviceId;
+    private final ServiceId id;
     private ServiceStatus status;
 
     private ServiceContract contract;
-    private DatasourceRef datasourceRef;
+    private DatasourceId datasourceId;
     private BindingSpec bindingSpec;
 
-    private final String name;
+    private String name;
     private String description;
 
     private final Instant createdAt;
     private Instant updatedAt;
 
-    public ApiService(
-            ServiceId serviceId,
+    private final List<Object> domainEvents = new ArrayList<>();
+
+    private ApiService(ServiceId id,
             ServiceContract contract,
-            DatasourceRef datasourceRef,
-            BindingSpec bindingSpec,
-            String name,
-            String description
-    ) {
-        Assert.notNull(serviceId, "serviceId must not be null");
-        Assert.notNull(contract, "contract must not be null");
-        Assert.notNull(datasourceRef, "datasourceRef must not be null");
-        Assert.notNull(bindingSpec, "bindingSpec must not be null");
+            DatasourceId datasourceId) {
 
-        this.serviceId = serviceId;
+        Assert.notNull(id, "ServiceId must not be null");
+        Assert.notNull(contract, "ServiceContract must not be null");
+        Assert.notNull(datasourceId, "DatasourceId must not be null");
+
+        this.id = id;
         this.contract = contract;
-        this.datasourceRef = datasourceRef;
-        this.bindingSpec = bindingSpec;
+        this.datasourceId = datasourceId;
+        this.status = ServiceStatus.DISABLED;
 
-        this.name = name;
-        this.description = description;
-
-        this.status = ServiceStatus.ENABLED;
         this.createdAt = Instant.now();
         this.updatedAt = this.createdAt;
     }
 
-    public void validateAgainstDatasource(DatasourceContract datasourceContract) {
-        Assert.notNull(datasourceContract, "datasourceContract must not be null");
+    public static ApiService create(
+            ServiceId id,
+            DatasourceId datasourceId,
+            ServiceContract contract
+    ) {
+        Assert.notNull(id, "ServiceId must not be null");
+        Assert.notNull(datasourceId, "DatasourceId must not be null");
+        Assert.notNull(contract, "ServiceContract must not be null");
 
-        contract.assertCompatibleWith(
-                datasourceContract,
-                bindingSpec
-        );
-    }
-
-    public void disable() {
-        this.status = ServiceStatus.DISABLED;
-        touch();
+        ApiService ds = new ApiService(id, contract, datasourceId);
+        ds.domainEvents.add(new ApiServiceCreated(id, datasourceId));
+        return ds;
     }
 
     public void enable() {
+        if (this.status == ServiceStatus.ENABLED) {
+            return;
+        }
         this.status = ServiceStatus.ENABLED;
+        this.domainEvents.add(new ApiServiceEnabled(this.id));
         touch();
     }
 
-    public void updateContract(ServiceContract newContract) {
+    public void disable() {
+        if (this.status == ServiceStatus.DISABLED) {
+            return;
+        }
+        this.status = ServiceStatus.DISABLED;
+        domainEvents.add(new ApiServiceDisabled(id));
+        touch();
+    }
+
+    public boolean isEnabled() {
+        return status == ServiceStatus.ENABLED;
+    }
+
+    public void updateContract(ServiceContract newContract,
+            BindingSpec newBindingSpec) {
         Assert.notNull(newContract, "newContract must not be null");
         this.contract = newContract;
+        this.bindingSpec = newBindingSpec;
         touch();
     }
 
-    public void updateBindingSpec(BindingSpec newSpec) {
-        Assert.notNull(newSpec, "bindingSpec must not be null");
-        this.bindingSpec = newSpec;
-        touch();
-    }
-
-    public void updateDescription(String newDescription) {
-        Assert.notNull(newDescription, "newDescription must not be null");
-        this.description = newDescription;
-        touch();
+    public List<Object> pullDomainEvents() {
+        List<Object> events = List.copyOf(domainEvents);
+        domainEvents.clear();
+        return events;
     }
 
     private void touch() {
         this.updatedAt = Instant.now();
     }
 
-    public ServiceId serviceId() {
-        return serviceId;
+    @Override
+    public boolean sameIdentityAs(ApiService other) {
+        return other != null && this.id.sameValueAs(other.id);
     }
 
-    public ServiceStatus status() {
-        return status;
+    @Override
+    public boolean equals(Object o) {
+        return this == o || (o instanceof ApiService that && sameIdentityAs(that));
     }
 
-    public ServiceContract contract() {
-        return contract;
-    }
-
-    public DatasourceRef datasourceRef() {
-        return datasourceRef;
-    }
-
-    public BindingSpec bindingSpec() {
-        return bindingSpec;
+    @Override
+    public int hashCode() {
+        return Objects.hash(id);
     }
 }

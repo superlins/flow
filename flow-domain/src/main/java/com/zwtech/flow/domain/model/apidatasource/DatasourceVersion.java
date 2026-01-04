@@ -1,25 +1,31 @@
 package com.zwtech.flow.domain.model.apidatasource;
 
+import com.zwtech.flow.domain.shared.ValueObject;
 import org.springframework.util.Assert;
 
 import java.util.Objects;
 
-public final class DatasourceVersion {
+public final class DatasourceVersion implements ValueObject<DatasourceVersion> {
 
-    private final String value;
+    private final int value;
 
-    public DatasourceVersion(String value) {
-        Assert.hasText(value, "datasourceVersion must not be blank");
+    public DatasourceVersion(int value) {
+        Assert.isTrue(value > 0, "DatasourceVersion must be greater than 0");
         this.value = value;
     }
 
-    public String value() {
+    public int value() {
         return value;
     }
 
     @Override
+    public boolean sameValueAs(DatasourceVersion other) {
+        return other != null && this.value == other.value;
+    }
+
+    @Override
     public boolean equals(Object o) {
-        return o instanceof DatasourceVersion other && value.equals(other.value);
+        return (o instanceof DatasourceVersion other) && sameValueAs(other);
     }
 
     @Override

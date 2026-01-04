@@ -1,38 +1,43 @@
 package com.zwtech.flow.domain.model.apidatasource;
 
-import com.zwtech.flow.domain.shared.JsonSchema;
 import com.zwtech.flow.domain.shared.ValueObject;
 import org.springframework.util.Assert;
 
 public final class DatasourceContract implements ValueObject<DatasourceContract> {
 
-    private final JsonSchema inputSchema;
-    private final JsonSchema outputSchema;
+    private final String inputSchema;
+    private final String outputSchema;
+    private final boolean strict;
 
-    public DatasourceContract(JsonSchema inputSchema,
-                              JsonSchema outputSchema) {
-        Assert.notNull(inputSchema, "inputSchema must not be null");
-        Assert.notNull(outputSchema, "outputSchema must not be null");
+    public DatasourceContract(String inputSchema, String outputSchema, boolean strict) {
+        Assert.hasText(inputSchema, "InputSchema must not be empty");
+        Assert.hasText(outputSchema, "OutputSchema must not be empty");
         this.inputSchema = inputSchema;
         this.outputSchema = outputSchema;
+        this.strict = strict;
     }
 
-    public JsonSchema inputSchema() {
+    public String inputSchema() {
         return inputSchema;
     }
 
-    public JsonSchema outputSchema() {
+    public String outputSchema() {
         return outputSchema;
+    }
+
+    public boolean strict() {
+        return strict;
     }
 
     @Override
     public boolean sameValueAs(DatasourceContract other) {
-        return other != null && inputSchema.equals(other.inputSchema) && outputSchema.equals(other.outputSchema);
+        return other != null && strict == other.strict && inputSchema.equals(other.inputSchema) && outputSchema.equals(other.outputSchema);
     }
 
     @Override
     public boolean equals(Object o) {
-        if (o == null || getClass() != o.getClass()) return false;
+        if (o == null || getClass() != o.getClass())
+            return false;
 
         DatasourceContract that = (DatasourceContract) o;
         return sameValueAs(that);
@@ -42,7 +47,7 @@ public final class DatasourceContract implements ValueObject<DatasourceContract>
     public int hashCode() {
         int result = inputSchema.hashCode();
         result = 31 * result + outputSchema.hashCode();
+        result = 31 * result + Boolean.hashCode(strict);
         return result;
     }
-
 }
