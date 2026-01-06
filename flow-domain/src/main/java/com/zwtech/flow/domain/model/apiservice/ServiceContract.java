@@ -43,4 +43,9 @@ public final class ServiceContract implements ValueObject<ServiceContract> {
     public int hashCode() {
         return Objects.hash(inputSchema, outputSchema);
     }
+
+    @Override
+    public String toString() {
+        return "ServiceContract{}";
+    }
 }

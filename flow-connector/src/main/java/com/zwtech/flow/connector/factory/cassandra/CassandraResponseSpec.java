@@ -1,6 +1,6 @@
 package com.zwtech.flow.connector.factory.cassandra;
 
-import org.example.core.connector.ResponseSpec;
+import com.zwtech.flow.connector.ResponseSpec;
 
 import java.util.Map;
 

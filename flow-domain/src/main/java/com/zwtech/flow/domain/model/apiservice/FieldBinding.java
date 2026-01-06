@@ -5,6 +5,9 @@ import org.springframework.util.Assert;
 
 import java.util.Objects;
 
+/**
+ * @author renc
+ */
 public final class FieldBinding implements ValueObject<FieldBinding> {
 
     private final String targetField;
@@ -40,5 +43,10 @@ public final class FieldBinding implements ValueObject<FieldBinding> {
     @Override
     public int hashCode() {
         return Objects.hash(targetField, expression);
+    }
+
+    @Override
+    public String toString() {
+        return "FieldBinding{targetField='" + targetField + "', expression='" + expression + "'}";
     }
 }

@@ -6,6 +6,9 @@ import org.springframework.data.repository.reactive.ReactiveCrudRepository;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
+/**
+ * @author renc
+ */
 interface ApiDatasourceEntityRepository extends ReactiveCrudRepository<ApiDatasourceEntity, Long> {
 
     Flux<ApiDatasourceEntity> findByKey(String key);
@@ -14,7 +17,4 @@ interface ApiDatasourceEntityRepository extends ReactiveCrudRepository<ApiDataso
     Mono<ApiDatasourceEntity> findLatestByKey(@Param("key") String key);
 
     Mono<ApiDatasourceEntity> findByKeyAndVersion(String key, int version);
-
-    @Query("SELECT EXISTS(SELECT * FROM ApiDatasourceEntity d WHERE d.key = :key AND d.version = :version)")
-    Mono<Boolean> isReferenced(String key, int version);
 }

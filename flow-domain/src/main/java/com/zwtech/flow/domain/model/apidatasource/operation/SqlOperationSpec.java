@@ -4,6 +4,9 @@ import org.springframework.util.Assert;
 
 import java.util.Objects;
 
+/**
+ * @author renc
+ */
 public final class SqlOperationSpec implements OperationSpec {
 
     private final String sql;

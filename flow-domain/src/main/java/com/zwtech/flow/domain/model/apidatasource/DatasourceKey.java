@@ -5,6 +5,9 @@ import org.springframework.util.Assert;
 
 import java.util.Objects;
 
+/**
+ * @author renc
+ */
 public final class DatasourceKey implements ValueObject<DatasourceKey> {
 
     private final String value;

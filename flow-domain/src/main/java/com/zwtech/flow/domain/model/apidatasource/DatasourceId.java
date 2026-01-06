@@ -5,6 +5,9 @@ import org.springframework.util.Assert;
 
 import java.util.Objects;
 
+/**
+ * @author renc
+ */
 public final class DatasourceId implements ValueObject<DatasourceId> {
 
     private final String key;
@@ -40,5 +43,10 @@ public final class DatasourceId implements ValueObject<DatasourceId> {
     @Override
     public int hashCode() {
         return Objects.hash(key, version);
+    }
+
+    @Override
+    public String toString() {
+        return "DatasourceId{key='" + key + "', version=" + version + "}";
     }
 }

@@ -3,6 +3,9 @@ package com.zwtech.flow.domain.model.apidatasource;
 import com.zwtech.flow.domain.shared.ValueObject;
 import org.springframework.util.Assert;
 
+/**
+ * @author renc
+ */
 public final class DatasourceContract implements ValueObject<DatasourceContract> {
 
     private final String inputSchema;
@@ -49,5 +52,10 @@ public final class DatasourceContract implements ValueObject<DatasourceContract>
         result = 31 * result + outputSchema.hashCode();
         result = 31 * result + Boolean.hashCode(strict);
         return result;
+    }
+
+    @Override
+    public String toString() {
+        return "DatasourceContract{strict=" + strict + "}";
     }
 }

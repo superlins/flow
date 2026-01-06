@@ -75,6 +75,8 @@ import java.util.Objects;
  *     }
  *   ]
  * }
+ *
+ * @author renc
  */
 public final class BindingSpec implements ValueObject<BindingSpec> {
 

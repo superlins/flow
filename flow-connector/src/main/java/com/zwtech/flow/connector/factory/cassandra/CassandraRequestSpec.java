@@ -1,6 +1,6 @@
 package com.zwtech.flow.connector.factory.cassandra;
 
-import org.example.core.connector.RequestSpec;
+import com.zwtech.flow.connector.RequestSpec;
 
 public class CassandraRequestSpec implements RequestSpec {
     private String cqlQuery;

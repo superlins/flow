@@ -3,6 +3,9 @@ package com.zwtech.flow.domain.model.apiservice;
 import com.zwtech.flow.domain.model.apidatasource.DatasourceId;
 import com.zwtech.flow.domain.shared.DomainEvent;
 
+/**
+ * @author renc
+ */
 public final class ApiServiceCreated implements DomainEvent<ApiServiceCreated> {
 
     private final ServiceId serviceId;

@@ -5,6 +5,9 @@ import org.springframework.util.Assert;
 
 import java.util.Objects;
 
+/**
+ * @author renc
+ */
 public final class ServiceId implements ValueObject<ServiceId> {
 
     private final String value;
@@ -31,5 +34,10 @@ public final class ServiceId implements ValueObject<ServiceId> {
     @Override
     public int hashCode() {
         return Objects.hash(value);
+    }
+
+    @Override
+    public String toString() {
+        return "ServiceId{value='" + value + "'}";
     }
 }

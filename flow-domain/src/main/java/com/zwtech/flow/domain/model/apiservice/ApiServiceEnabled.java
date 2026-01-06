@@ -2,6 +2,9 @@ package com.zwtech.flow.domain.model.apiservice;
 
 import com.zwtech.flow.domain.shared.DomainEvent;
 
+/**
+ * @author renc
+ */
 public final class ApiServiceEnabled implements DomainEvent<ApiServiceEnabled> {
 
     private final ServiceId serviceId;

@@ -2,7 +2,6 @@ package com.zwtech.flow.domain.shared;
 
 /**
  * An entity, as explained in the DDD book.
- *  
  */
 public interface DomainEntity<T> {
 
