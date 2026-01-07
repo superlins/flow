@@ -1,9 +1,12 @@
 package com.zwtech.flow.core;
 
+import org.jspecify.annotations.Nullable;
+import org.springframework.context.ApplicationContext;
+import org.springframework.util.Assert;
+import tools.jackson.databind.JsonNode;
+
 import java.util.Map;
-import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.function.UnaryOperator;
 
 /**
  * ExecutionExchange 的不可变实现。
@@ -12,45 +15,41 @@ import java.util.function.UnaryOperator;
  */
 public final class DefaultExecutionExchange implements ExecutionExchange {
 
-    private final ExecutionContext context;
-    private final Map<ExchangeAttributeKey<?>, Object> attributes;
+    private final JsonNode request;
+    private final JsonNode response;
+    private final Map<String, Object> attributes = new ConcurrentHashMap<>();
+    private final @Nullable ApplicationContext applicationContext;
 
-    public DefaultExecutionExchange(ExecutionContext context, Map<ExchangeAttributeKey<?>, Object> attributes) {
-        this.context = context == null ? DefaultExecutionContext.empty() : context;
-        this.attributes = attributes == null ? Map.of() : Map.copyOf(attributes);
+    public DefaultExecutionExchange(JsonNode request, JsonNode response) {
+        this(request, response, null);
     }
 
-    public static DefaultExecutionExchange empty() {
-        return new DefaultExecutionExchange(DefaultExecutionContext.empty(), Map.of());
-    }
-
-    @Override
-    public ExecutionContext context() {
-        return context;
-    }
-
-    @Override
-    public ExecutionExchange mutate(UnaryOperator<ExecutionContext> operator) {
-        ExecutionContext newCtx = operator.apply(context);
-        return new DefaultExecutionExchange(newCtx, attributes);
-    }
-
-    @SuppressWarnings("unchecked")
-    @Override
-    public <T> Optional<T> getAttribute(ExchangeAttributeKey<T> key) {
-        return Optional.ofNullable((T) attributes.get(key));
+    public DefaultExecutionExchange(JsonNode request, JsonNode response, @Nullable ApplicationContext applicationContext) {
+        Assert.notNull(request, "'request' is required");
+        Assert.notNull(response, "'response' is required");
+        this.request = request;
+        this.response = response;
+        this.applicationContext = applicationContext;
     }
 
     @Override
-    public ExecutionExchange withAttribute(ExchangeAttributeKey<?> key, Object value) {
-        Map<ExchangeAttributeKey<?>, Object> copy = new ConcurrentHashMap<>(attributes);
-        copy.put(key, value);
-        return new DefaultExecutionExchange(context, copy);
+    public JsonNode getRequest() {
+        return this.request;
     }
 
     @Override
-    public String toString() {
-        return "DefaultExecutionExchange{context=" + context + ", attributes=" + attributes + '}';
+    public JsonNode getResponse() {
+        return this.response;
+    }
+
+    @Override
+    public Map<String, Object> getAttributes() {
+        return this.attributes;
+    }
+
+    @Override
+    public @Nullable ApplicationContext getApplicationContext() {
+        return this.applicationContext;
     }
 }
 

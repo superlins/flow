@@ -3,6 +3,7 @@ package com.zwtech.flow.connector.factory.http;
 import com.zwtech.flow.connector.Connector;
 import com.zwtech.flow.connector.factory.AbstractConnectorFactory;
 import com.zwtech.flow.domain.model.apidatasource.ApiDatasource;
+import com.zwtech.flow.domain.model.apidatasource.connection.HttpConnectionSpec;
 import io.netty.channel.ChannelOption;
 import io.netty.handler.ssl.SslContext;
 import io.netty.handler.ssl.SslContextBuilder;
@@ -30,6 +31,7 @@ public class HttpConnectorFactory extends AbstractConnectorFactory<HttpRequestSp
 
     @Override
     public Connector<HttpRequestSpec, HttpResponseSpec> create(ApiDatasource apiDatasource) {
+        var connection = (HttpConnectionSpec) apiDatasource.connection();
         // String clientKey = generateKey(apiDatasource);
         // var webClient = clientCache.computeIfAbsent(clientKey, key -> createWebClient(apiDatasource));
         var webClient = webClientBuilder.build();

@@ -60,8 +60,7 @@ public abstract class DataBinder {
      * @return 目标类型实例
      */
     public static <T> T bind(ExecutionExchange exchange, Class<T> c) {
-        JsonNode input = exchange.context().input()
-                .orElseThrow(() -> new IllegalStateException("ExecutionContext.input is empty"));
+        JsonNode input = exchange.getRequest();
         return bind(input, c);
     }
 }

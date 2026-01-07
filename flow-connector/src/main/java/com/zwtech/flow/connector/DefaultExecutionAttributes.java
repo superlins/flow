@@ -35,6 +35,11 @@ public final class DefaultExecutionAttributes implements ExecutionAttributes {
     }
 
     @Override
+    public Map<String, Object> toMap() {
+        return Map.copyOf(attrs);
+    }
+
+    @Override
     public String toString() {
         return "DefaultExecutionAttributes" + attrs;
     }

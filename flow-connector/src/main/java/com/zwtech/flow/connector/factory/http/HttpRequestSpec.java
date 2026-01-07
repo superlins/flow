@@ -7,11 +7,13 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.util.Assert;
-import tools.jackson.databind.JsonNode;
 
 import java.io.IOException;
 import java.time.Duration;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.TimeoutException;
 
 /**
@@ -25,10 +27,10 @@ public class HttpRequestSpec implements RequestSpec {
     private HttpMethod method;
     private HttpHeaders headers;
     private Map<String, Object> queryParams = new HashMap<>();
-    private JsonNode body;
+    private Object body;
 
     // retry config
-    private int retries = 0;
+    private int retries;
 
     private List<HttpStatus.Series> series = List.of(HttpStatus.Series.SERVER_ERROR);
 

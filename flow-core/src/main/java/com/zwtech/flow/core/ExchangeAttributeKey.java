@@ -15,6 +15,10 @@ public final class ExchangeAttributeKey<T> {
         this.name = Objects.requireNonNull(name, "name must not be null");
     }
 
+    public static <T> ExchangeAttributeKey<T> of(String name) {
+        return new ExchangeAttributeKey<>(name);
+    }
+
     public String name() {
         return name;
     }

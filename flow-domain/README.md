@@ -24,13 +24,13 @@
 
 ### 1.2 与 ApiService 的边界
 
-| 维度 | ApiDatasource | ApiService |
-|------|---------------|------------|
-| 面向对象 | 平台 / 技术侧 | 业务 / 产品侧 |
-| 是否可直接调用 | 是 | 否（通过 Datasource） |
-| 是否有版本 | 有 | 无 |
-| 是否定义底层协议 | 是 | 否 |
-| 是否暴露给用户 | 否 | 是 |
+| 维度       | ApiDatasource | ApiService       |
+|----------|---------------|------------------|
+| 面向对象     | 平台 / 技术侧      | 业务 / 产品侧         |
+| 是否可直接调用  | 是             | 否（通过 Datasource） |
+| 是否有版本    | 有             | 无                |
+| 是否定义底层协议 | 是             | 否                |
+| 是否暴露给用户  | 否             | 是                |
 
 **ApiDatasource 的 Contract 是对 ApiService 的承诺，而不是实现细节**
 
@@ -130,7 +130,7 @@ Datasource 负责给出"最低要求"，ApiService 可以：
 
 ---
 
-## 5. OperationSpec（你修正得非常正确）
+## 5. OperationSpec
 
 ### 5.1 设计意图
 
@@ -147,18 +147,20 @@ Datasource 负责给出"最低要求"，ApiService 可以：
 
 ### 5.2 为什么 sql / method / path 在 Operation
 
-| 内容 | 属于 |
-|------|------|
-| SQL | Operation |
-| HTTP method | Operation |
-| URL path | Operation |
-| 参数列表 | Operation |
+| 内容           | 属于        |
+|--------------|-----------|
+| SQL          | Operation |
+| HTTP method  | Operation |
+| HTTP URL     | Operation |
+| HTTP PARAMS  | Operation |
+| HTTP BODY    | Operation |
+| HTTP HEADERS | Operation |
 
 **因为这些决定的是"行为"，不是"通道"**
 
 ---
 
-## 6. ConnectionSpec（刻意做得很"干净"）
+## 6. ConnectionSpec
 
 ### 6.1 职责
 
@@ -187,9 +189,11 @@ Datasource 负责给出"最低要求"，ApiService 可以：
 ### 7.1 Extension 是"声明"，不是"行为"
 
 ```json
-"extension": [
-  { "id": "oauth2-enricher", "version": "1.0.0" }
-]
+{
+  "extension": [
+    { "id": "oauth2-enricher@1.0.0" }
+  ]
+}
 ```
 
 **设计意图：**
@@ -449,9 +453,8 @@ public interface ApiDatasourceRepository {
 - ✅ 版本通过 DatasourceId 的 version 来管理
 - ✅ Extension 只声明插件 id
 
-**决策 3：baseUrl 位置**
-- ✅ baseUrl 属于 HttpConnectionSpec（连接层）
-- ✅ HttpOperationSpec 只包含 path 和 method（操作层）
+**决策 3：OperationSpec**
+- ✅ HttpOperationSpec 包含所有和 http 相关的参数，如 query/headers/body/method/path
 
 **决策 4：Option 字段**
 - ⏸️ 暂时不实现，待后续需求明确

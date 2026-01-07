@@ -212,59 +212,20 @@ public interface ConnectorFilterChain {
   "type": "http",
   "version": "1",
   "description": "DataSource for creating orders",
-  "specification": {
-    "url": "https://api.example.com/v2",
-    "path": "/orders",
-    "method": "POST",
-    "inputSchema": {
+  "contract": {
+    "input": {
       "type": "object",
       "properties": {
-        "X-Internal-Token": {
-          "type": "string",
-          "description": "User token",
-          "x-internal-in": "header"
-        },
         "userId": {
           "type": "string",
-          "description": "User ID",
-          "x-internal-in": "body"
-        },
-        "items": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "properties": {
-              "productId": {
-                "type": "string"
-              },
-              "quantity": {
-                "type": "integer",
-                "minimum": 1
-              },
-              "secret": {
-                "type": "string",
-                "const": "apikey",
-                "x-internal-const": "apikey"
-              },
-              "uid": {
-                "type": "string",
-                "default": "user1",
-                "x-internal-default": "user1"
-              }
-            },
-            "required": [
-              "productId",
-              "quantity"
-            ]
-          }
+          "description": "User ID"
         }
       },
       "required": [
-        "userId",
-        "items"
+        "userId"
       ]
     },
-    "outputSchema": {
+    "output": {
       "type": "object",
       "properties": {
         "orderId": {
@@ -283,18 +244,38 @@ public interface ConnectorFilterChain {
       }
     }
   },
+  "operation": {
+    "url": "https://api.example.com/v2/user/{{ $request.userId }}/orders",
+    "method": "POST",
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "queryParams": {
+      "userId": "{{ $request.userId }}"
+    },
+    "requestBody": {
+      "user": {
+        "id": "{{ $request.userId | INTEGER }}"
+      }
+    },
+    "responseBody": {
+      "status": "{{ $response.status }}",
+      "data": "{{ $response.body.result }}"
+    }
+  },
   "connection": {
-    "connectionTimeout": "PT5S",
-    "responseTimeout": "PT10S",
+    "timeout": "PT5S",
+    "connectionTimeout": "PT1S",
+    "responseTimeout": "PT1S",
     "retryDisabled": false,
     "compressionEnabled": false,
     "certVerifyDisabled": false,
-    "timeoutMs": 5000,
     "retry": {
       "maxAttempts": 1
     },
     "rateLimiter": {
-    }
+    },
+    "cache": {}
   },
   "extension": [
     {
