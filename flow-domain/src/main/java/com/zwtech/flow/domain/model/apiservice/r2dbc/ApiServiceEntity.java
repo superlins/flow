@@ -2,7 +2,6 @@ package com.zwtech.flow.domain.model.apiservice.r2dbc;
 
 import com.zwtech.flow.domain.model.apidatasource.DatasourceId;
 import com.zwtech.flow.domain.model.apiservice.ApiService;
-import com.zwtech.flow.domain.model.apiservice.BindingSpec;
 import com.zwtech.flow.domain.model.apiservice.ServiceContract;
 import com.zwtech.flow.domain.model.apiservice.ServiceId;
 import com.zwtech.flow.domain.model.apiservice.ServiceStatus;
@@ -95,12 +94,6 @@ class ApiServiceEntity {
             entity.setDatasourceVersion(service.datasourceId().version());
         }
         
-        // 绑定规则（需要序列化为 JSON）
-        // TODO: 使用 JSON 序列化库（如 Jackson）序列化 BindingSpec
-        if (service.bindingSpec() != null) {
-            entity.setBindingSpec(service.bindingSpec().toString()); // 临时方案
-        }
-        
         // 时间戳
         entity.setCreatedAt(service.createdAt());
         entity.setUpdatedAt(service.updatedAt());
@@ -125,12 +118,6 @@ class ApiServiceEntity {
         // Datasource 引用
         var datasourceId = new DatasourceId(datasourceKey, datasourceVersion);
         
-        // 绑定规则（需要反序列化）
-        // TODO: 从 JSON 反序列化为 BindingSpec
-        // 可以使用 Jackson 的 ObjectMapper.readValue() 反序列化
-        // 当前暂时为 null，需要 JSON 反序列化支持
-        BindingSpec bindingSpec = null;
-        
         // 使用静态工厂方法恢复对象
         return ApiService.restore(
                 serviceId,
@@ -139,7 +126,6 @@ class ApiServiceEntity {
                 status,
                 contract,
                 datasourceId,
-                bindingSpec,
                 createdAt,
                 updatedAt
         );

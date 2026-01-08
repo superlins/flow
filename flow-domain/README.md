@@ -1,6 +1,7 @@
 # ApiDatasource 领域模型设计意图（Design Intent）
 
-本文档系统性地阐述 ApiDatasource 领域模型的全部设计意图，可作为架构设计文档、ADR（Architecture Decision Record）或模块 README 使用。
+本文档系统性地阐述 ApiDatasource 领域模型的全部设计意图，可作为架构设计文档、ADR（Architecture Decision Record）或模块
+README 使用。
 
 ---
 
@@ -13,6 +14,7 @@
 👉 **"一个可被 ApiService 引用、可执行、具备明确契约承诺的底层数据源能力"**
 
 **它不是：**
+
 - ❌ 数据库连接池
 - ❌ HTTP 客户端
 - ❌ SQL 或 URL 的简单配置集合
@@ -43,6 +45,7 @@
 **ApiDatasource 是一个聚合根**
 
 **理由：**
+
 - 拥有完整生命周期（创建 → 启用 → 停用）
 - 有不可破坏的业务不变量（被引用不可修改）
 - 是 ApiService 的稳定依赖点
@@ -52,6 +55,7 @@
 ### 2.2 聚合一致性边界
 
 **一个 ApiDatasource 聚合内，必须始终一致：**
+
 - `ContractSpec`
 - `OperationSpec`
 - `ConnectionSpec`
@@ -70,6 +74,7 @@
 **(key, version)**
 
 **设计意图：**
+
 - 业务可读
 - 可稳定引用
 - 显式支持版本演进
@@ -91,10 +96,12 @@
 ### 4.1 Contract 是"法律"，不是"实现"
 
 **ContractSpec：**
+
 - 定义 ApiService 必须满足的输入
 - 定义 Datasource 承诺返回的输出
 
 **它的作用对象是：**
+
 - ApiService（绑定阶段）
 - 执行引擎（执行前 / 执行后）
 
@@ -107,6 +114,7 @@
 **ApiService 的契约来源于 ApiDatasource，但可以被重塑**
 
 Datasource 负责给出"最低要求"，ApiService 可以：
+
 - 重命名字段
 - 合并 / 拆分字段
 - 重新计算输出
@@ -120,6 +128,7 @@ Datasource 负责给出"最低要求"，ApiService 可以：
 **是的。**
 
 **原因：**
+
 - 是否满足 Schema = 是否允许执行
 - 不满足 = 业务失败，不是技术异常
 - `strict` / `default` / `const` 都是业务约束
@@ -139,6 +148,7 @@ Datasource 负责给出"最低要求"，ApiService 可以：
 👉 **"这个 Datasource 要做什么操作"**
 
 **而不是：**
+
 - ❌ 如何连接
 - ❌ 如何重试
 - ❌ 如何鉴权
@@ -158,6 +168,32 @@ Datasource 负责给出"最低要求"，ApiService 可以：
 
 **因为这些决定的是"行为"，不是"通道"**
 
+### 5.3 基于表达式的的占位变量声明，从统一的变量上下文 VariableContext 获取指定变量
+
+```json
+{
+  "operation": {
+    "url": "https://api.example.com/v2/user/{{ $request.userId }}/orders",
+    "method": "POST",
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "queryParams": {
+      "userId": "{{ $request.userId }}"
+    },
+    "requestBody": {
+      "user": {
+        "id": "{{ $request.userId | INTEGER }}"
+      }
+    },
+    "responseBody": {
+      "status": "{{ $response.status }}",
+      "data": "{{ $response.body.result }}"
+    }
+  }
+}
+```
+
 ---
 
 ## 6. ConnectionSpec
@@ -169,6 +205,7 @@ Datasource 负责给出"最低要求"，ApiService 可以：
 👉 **"如何连到目标系统"**
 
 **它不关心：**
+
 - 具体操作内容
 - 输入输出结构
 - 字段映射
@@ -178,6 +215,7 @@ Datasource 负责给出"最低要求"，ApiService 可以：
 ### 6.2 为什么不把 sql / path 放进 connection
 
 **因为那会导致：**
+
 - 不可复用
 - 职责混乱
 - 后续无法支持多个 Operation 共用一个连接
@@ -191,12 +229,15 @@ Datasource 负责给出"最低要求"，ApiService 可以：
 ```json
 {
   "extension": [
-    { "id": "oauth2-enricher@1.0.0" }
+    {
+      "id": "oauth2-enricher@1.0.0"
+    }
   ]
 }
 ```
 
 **设计意图：**
+
 - Datasource 只声明依赖
 - 插件配置在插件自己的存储中
 - 执行期由引擎统一装配
@@ -206,6 +247,7 @@ Datasource 负责给出"最低要求"，ApiService 可以：
 ### 7.2 为什么 Extension 不进入 Contract
 
 **因为：**
+
 - 插件不应影响 ApiService 的绑定合法性
 - 插件是执行期 concern，不是契约 concern
 
@@ -224,6 +266,7 @@ Datasource 负责给出"最低要求"，ApiService 可以：
 ### 8.2 Options 的铁律
 
 **❌ Options 不允许承载：**
+
 - Contract
 - Operation
 - Connection
@@ -237,11 +280,13 @@ Datasource 负责给出"最低要求"，ApiService 可以：
 ### DS-1 不可修改被引用的 Datasource
 
 **设计目标：**
+
 - 保证 ApiService 稳定性
 - 防止隐式破坏
 - 强制版本演进
 
 **实现方式：**
+
 - Repository 提供 `isReferenced()` 方法
 - 修改前必须检查引用状态
 - 被引用时强制创建新版本
@@ -251,11 +296,13 @@ Datasource 负责给出"最低要求"，ApiService 可以：
 ### DS-2 只有 Enabled 才允许调用
 
 **设计目标：**
+
 - 运维可控
 - 即时止损
 - 无后门
 
 **实现方式：**
+
 - `ApiDatasource.isEnabled()` 方法
 - 执行引擎在执行前必须检查状态
 - 状态变更通过领域事件通知
@@ -265,10 +312,12 @@ Datasource 负责给出"最低要求"，ApiService 可以：
 ### DS-3 无并发 / 独占假设
 
 **设计目标：**
+
 - 最大通用性
 - 不绑定执行模型
 
 **实现方式：**
+
 - 领域模型不包含并发控制逻辑
 - 由执行引擎或基础设施层处理并发
 
@@ -277,11 +326,13 @@ Datasource 负责给出"最低要求"，ApiService 可以：
 ### DS-4 不允许删除
 
 **设计目标：**
+
 - 审计
 - 可追溯
 - 历史可复现
 
 **实现方式：**
+
 - Repository 不提供 `delete()` 方法
 - 只能通过 `disable()` 停用
 - 所有历史版本保留
@@ -291,16 +342,44 @@ Datasource 负责给出"最低要求"，ApiService 可以：
 ### DS-5 必须支持版本
 
 **设计目标：**
+
 - 长期演进
 - 多服务共存
 - 平滑迁移
 
 **实现方式：**
+
 - `DatasourceId` 包含 `(key, version)`
 - `findByKey()` 返回所有版本
 - 版本号必须为正整数
 
 ---
+
+Rule 1：Operation 是 Datasource 的组成部分，不是独立聚合
+
+原因：
+• 不能单独版本化
+• 不能单独引用
+• 生命周期依附 Datasource
+
+⸻
+
+Rule 2：被引用的 Datasource，Operation 集合不可变
+
+包括：
+• 新增 Operation
+• 删除 Operation
+• 修改 OperationSpec
+
+👉 统一触发新版本
+
+⸻
+
+Rule 3：ApiService 必须显式绑定 operationKey
+
+不允许：
+• 隐式 default（除非兼容旧数据）
+• 执行期推断
 
 ## 10. Repository 设计意图
 
@@ -309,6 +388,7 @@ Datasource 负责给出"最低要求"，ApiService 可以：
 **在领域模型与数据库模型之间翻译语义**
 
 **它：**
+
 - 知道 JSONB
 - 知道表结构
 - 知道多态反序列化
@@ -322,13 +402,17 @@ Datasource 负责给出"最低要求"，ApiService 可以：
 ```java
 public interface ApiDatasourceRepository {
     Mono<ApiDatasource> findById(DatasourceId id);
+
     Flux<ApiDatasource> findByKey(String key);
+
     Mono<ApiDatasource> save(ApiDatasource datasource);
+
     Mono<Boolean> isReferenced(DatasourceId id);
 }
 ```
 
 **设计原则：**
+
 - 使用领域模型类型（`DatasourceId`，不是 `Long`）
 - 返回领域模型（`ApiDatasource`，不是 `Entity`）
 - 隐藏持久化细节（JSONB、表结构等）
@@ -390,9 +474,9 @@ public interface ApiDatasourceRepository {
 
 - **聚合根**：`com.zwtech.flow.domain.model.apidatasource.ApiDatasource`
 - **标识**：`com.zwtech.flow.domain.model.apidatasource.DatasourceId`
-- **契约**：`com.zwtech.flow.domain.model.apidatasource.DatasourceContract`
-- **操作**：`com.zwtech.flow.domain.model.apidatasource.operation.OperationSpec`
-- **连接**：`com.zwtech.flow.domain.model.apidatasource.connection.ConnectionSpec`
+- **契约**：`com.zwtech.flow.domain.model.apidatasource.OperationContract`
+- **操作**：`com.zwtech.flow.domain.model.apidatasource.behavior.OperationBehavior`
+- **连接**：`com.zwtech.flow.domain.model.apidatasource.connection.DatasourceConnection`
 - **仓储**：`com.zwtech.flow.domain.model.apidatasource.ApiDatasourceRepository`
 - **实现**：`com.zwtech.flow.domain.model.apidatasource.r2dbc.R2dbcApiDatasourceRepository`
 
@@ -405,6 +489,7 @@ public interface ApiDatasourceRepository {
 ### 14.1 已实现
 
 ✅ **核心领域模型**
+
 - ApiDatasource 聚合根完整实现
 - DatasourceId (key, version) 标识设计
 - DatasourceContract 契约设计
@@ -412,6 +497,7 @@ public interface ApiDatasourceRepository {
 - Extension 扩展声明（无 version，版本通过 DatasourceId 管理）
 
 ✅ **领域行为**
+
 - `create()` - 创建新的 Datasource
 - `configure()` - 配置核心字段（一次性配置）
 - `updateMetadata()` - 更新可变字段（name、description）
@@ -420,6 +506,7 @@ public interface ApiDatasourceRepository {
 - `enable()` / `disable()` - 状态管理（实现 DS-2 规则）
 
 ✅ **Repository 设计**
+
 - 领域模型与持久化模型分离
 - 使用 `restore()` 静态工厂方法恢复领域对象
 - 语义翻译职责明确
@@ -427,41 +514,292 @@ public interface ApiDatasourceRepository {
 ### 14.2 待完善
 
 ⚠️ **JSON 序列化/反序列化**
+
 - OperationSpec 和 ConnectionSpec 的多态序列化
 - Extension 列表的 JSON 数组序列化
 - 需要集成 Jackson 或类似 JSON 库
 - 使用 `@JsonTypeInfo` 和 `@JsonSubTypes` 实现多态
 
 ⚠️ **isReferenced() 实现**
+
 - 需要查询 FLW_API_SERVICE 表
 - 检查 datasourceId 引用关系
 - 当前返回 false（占位实现）
 
 ⚠️ **数据库字段**
+
 - 需要添加 `STRICT_` 字段到 FLW_API_DATASOURCE 表
 - 用于存储 DatasourceContract 的 strict 标志
 
 ### 14.3 设计决策记录
 
 **决策 1：ApiDatasource 的修改策略**
+
 - ✅ 允许修改可变字段（name、description）
 - ✅ 核心字段（contract、operation、connection）修改前必须检查引用状态（DS-1）
 - ✅ 通过 `updateCoreFields(boolean isReferenced, ...)` 方法，由应用服务层提供引用检查结果
 
 **决策 2：Extension 版本管理**
+
 - ✅ Extension 不需要单独的 version 字段
 - ✅ 版本通过 DatasourceId 的 version 来管理
 - ✅ Extension 只声明插件 id
 
 **决策 3：OperationSpec**
+
 - ✅ HttpOperationSpec 包含所有和 http 相关的参数，如 query/headers/body/method/path
 
 **决策 4：Option 字段**
+
 - ⏸️ 暂时不实现，待后续需求明确
 
 ---
 
-**文档版本**：1.1  
-**最后更新**：2024  
-**维护者**：Flow 团队
+## 15. 声明式定义
 
+### 15.1 ApiService
+
+一个逻辑服务单元，引用且只引用一个 ApiDatasource，属于 ApiDatasource 的投影，即 ApiService#contract 映射
+ApiDatasource#contract。
+ApiService 处理用户请求并做出响应
+
+```json
+{
+  "id": "",
+  "name": "A online api-service",
+  "datasource": "ds-http-post-create-order",
+  "enabled": true,
+  "contract": {
+    "input": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "user name"
+        },
+        "phone": {
+          "type": "string",
+          "description": "user phone"
+        },
+        "idcardno": {
+          "type": "string",
+          "description": "user idcardno"
+        },
+        "alg": {
+          "type": "string",
+          "description": "params algorithm",
+          "default": "md5",
+          "enum": [
+            "md5",
+            "sha256",
+            "sm3"
+          ],
+          "x-internal-map": "encryptType"
+        }
+      },
+      "required": [
+        "name",
+        "phone",
+        "idcardno"
+      ]
+    },
+    "output": {
+      "type": "object",
+      "properties": {
+        "score1": {
+          "type": "integer",
+          "description": "user score1"
+        },
+        "score2": {
+          "type": "string",
+          "description": "user score2"
+        }
+      }
+    }
+  },
+  "description": "",
+  "tags": [
+    "post"
+  ]
+}
+```
+
+### 15.2 ApiDatasource
+
+常见的 HTTP、RPC、JDBC、NoSQL 等 “契约模型” 标准化抽象模型，封装底层数据源的复杂性，“统一抽象 + 类型特化”；连接池、超时、重试、认证、限流；可测试、可验证
+
+- HTTP
+
+> 示例1
+
+```json
+{
+  "id": "ds-http-post-create-order",
+  "name": "Create Order (HTTP POST)",
+  "type": "http",
+  "version": "1",
+  "description": "DataSource for creating orders",
+  "connection": {
+    "baseUrl": "https://api.example.com/v2/",
+    "timeout": {
+      "timeout": "PT5S",
+      "connectionTimeout": "PT1S",
+      "responseTimeout": "PT1S",
+    },
+    "retry": {
+      "maxAttempts": 1
+    },
+    "rateLimiter": {},
+    "cache": {}
+  },
+  "operations": [
+    {
+      "operationId": "createOrder",
+      "contract": {
+        "input": {
+          "type": "object",
+          "properties": {
+            "userId": {
+              "type": "string",
+              "description": "User ID"
+            }
+          },
+          "required": [
+            "userId"
+          ]
+        },
+        "output": {
+          "type": "object",
+          "properties": {
+            "orderId": {
+              "type": "string"
+            },
+            "status": {
+              "type": "string",
+              "enum": [
+                "pending",
+                "confirmed"
+              ]
+            },
+            "totalAmount": {
+              "type": "number"
+            }
+          }
+        }
+      },
+      "behaviour": {
+        "path": "/user/{{ $request.userId }}/orders",
+        "method": "POST",
+        "request": {
+          "headers": {
+            "X-User-Agent": "airflow"
+          },
+          "queryParams": {
+            "userId": "{{ $request.userId }}"
+          },
+          "contentType": "application/json",
+          "body": {
+            "user": {
+              "id": "{{ $request.userId }}"
+            }
+          },
+        },
+        "response": {
+          "headers": {
+            "X-User-ID": "uuid()-v4"
+          },
+          "contentType": "application/json",
+          "body": {
+            "status": "{{ $response.status }}",
+            "data": "{{ $response.body.result }}"
+          }
+        }
+      },
+      "extension": [
+        {
+          "id": "oauth2-enricher"
+        },
+        {
+          "id": "logging"
+        }
+      ],
+    }
+  ],
+  "tags": [
+    "post"
+  ]
+}
+```
+
+- R2DBC
+
+遵循 SQL + JsonSchema 参数绑定风格
+
+```json
+{
+  "id": "ds-mysql-user-orders",
+  "name": "Get User Orders from MySQL",
+  "type": "mysql",
+  "version": "1",
+  "connection": {
+    "host": "prod-mysql.cluster-xxx.us-east-1.rds.amazonaws.com",
+    "port": 3306,
+    "database": "order_db",
+    "username": "{{secrets.mysql_order_reader_user}}",
+    "password": "{{secrets.mysql_order_reader_pwd}}",
+    "ssl": true,
+    "poolSize": 5
+  },
+  "operations": [
+    {
+      "operationId": "getUserOrders",
+      "contract": {
+        "input": {
+          "type": "object",
+          "properties": {
+            "userId": {
+              "type": "string"
+            },
+            "limit": {
+              "type": "integer",
+              "default": 10,
+              "maximum": 100
+            }
+          },
+          "required": [
+            "userId"
+          ]
+        },
+        "output": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "orderId": {
+                "type": "string"
+              },
+              "product": {
+                "type": "string"
+              },
+              "amount": {
+                "type": "number"
+              },
+              "createdAt": {
+                "type": "string",
+                "format": "date-time"
+              }
+            }
+          }
+        }
+      },
+      "behaviour": {
+        "sql": "SELECT order_id AS orderId, product_name AS product, amount, created_at AS createdAt FROM orders WHERE user_id = :userId ORDER BY created_at DESC LIMIT :limit",
+        "params": {
+          "userId": "{{ $request.userId }}",
+          "limit": "{{ $request.limit | INTEGER }}"
+        }
+      }
+    }
+  ]
+}
+```

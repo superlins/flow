@@ -1,4 +1,4 @@
-package com.zwtech.flow.domain.model.apidatasource.operation;
+package com.zwtech.flow.domain.model.apidatasource.behavior;
 
 import java.time.Duration;
 import java.util.Map;
@@ -8,7 +8,7 @@ import java.util.Map;
  *
  * @author renc
  */
-public final class HttpOperationSpec implements OperationSpec {
+public final class HttpOperationBehavior implements OperationBehavior {
 
     private final String url;
     private final String method;
@@ -19,7 +19,7 @@ public final class HttpOperationSpec implements OperationSpec {
     private final Map<String, Object> responseBody;
     private final Duration timeout;
 
-    public HttpOperationSpec(String url, String method, Map<String, String> headers, Map<String, Object> queryParams,
+    public HttpOperationBehavior(String url, String method, Map<String, String> headers, Map<String, Object> queryParams,
             Map<String, Object> requestBody, Map<String, Object> responseBody, Duration timeout) {
         this.url = url;
         this.method = method;
@@ -59,7 +59,7 @@ public final class HttpOperationSpec implements OperationSpec {
     }
 
     @Override
-    public boolean sameValueAs(OperationSpec other) {
+    public boolean sameValueAs(OperationBehavior other) {
         return false;
     }
 }

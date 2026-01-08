@@ -7,13 +7,13 @@ import java.util.Objects;
 /**
  * @author renc
  */
-public final class R2dbcConnectionSpec implements ConnectionSpec {
+public final class R2DbcDatasourceConnection implements DatasourceConnection {
 
     private final String host;
     private final int port;
     private final String database;
 
-    public R2dbcConnectionSpec(String host, int port, String database) {
+    public R2DbcDatasourceConnection(String host, int port, String database) {
         Assert.hasText(host, "host must not be empty");
         Assert.isTrue(port > 0, "port must be positive");
         Assert.hasText(database, "database must not be empty");
@@ -23,8 +23,8 @@ public final class R2dbcConnectionSpec implements ConnectionSpec {
     }
 
     @Override
-    public boolean sameValueAs(ConnectionSpec other) {
-        if (!(other instanceof R2dbcConnectionSpec o)) return false;
+    public boolean sameValueAs(DatasourceConnection other) {
+        if (!(other instanceof R2DbcDatasourceConnection o)) return false;
         return Objects.equals(host, o.host)
                 && port == o.port
                 && Objects.equals(database, o.database);
@@ -32,7 +32,7 @@ public final class R2dbcConnectionSpec implements ConnectionSpec {
 
     @Override
     public boolean equals(Object o) {
-        return (o instanceof ConnectionSpec other) && sameValueAs(other);
+        return (o instanceof DatasourceConnection other) && sameValueAs(other);
     }
 
     @Override

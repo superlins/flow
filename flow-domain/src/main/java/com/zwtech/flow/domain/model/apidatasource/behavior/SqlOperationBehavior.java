@@ -1,4 +1,4 @@
-package com.zwtech.flow.domain.model.apidatasource.operation;
+package com.zwtech.flow.domain.model.apidatasource.behavior;
 
 import org.springframework.util.Assert;
 
@@ -7,11 +7,11 @@ import java.util.Objects;
 /**
  * @author renc
  */
-public final class SqlOperationSpec implements OperationSpec {
+public final class SqlOperationBehavior implements OperationBehavior {
 
     private final String sql;
 
-    public SqlOperationSpec(String sql) {
+    public SqlOperationBehavior(String sql) {
         Assert.hasText(sql, "sql must not be empty");
         this.sql = sql;
     }
@@ -21,13 +21,13 @@ public final class SqlOperationSpec implements OperationSpec {
     }
 
     @Override
-    public boolean sameValueAs(OperationSpec other) {
-        return other instanceof SqlOperationSpec o && Objects.equals(this.sql, o.sql);
+    public boolean sameValueAs(OperationBehavior other) {
+        return other instanceof SqlOperationBehavior o && Objects.equals(this.sql, o.sql);
     }
 
     @Override
     public boolean equals(Object o) {
-        return (o instanceof OperationSpec other) && sameValueAs(other);
+        return (o instanceof OperationBehavior other) && sameValueAs(other);
     }
 
     @Override

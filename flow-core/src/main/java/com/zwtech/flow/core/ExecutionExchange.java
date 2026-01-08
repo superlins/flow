@@ -12,6 +12,8 @@ import java.util.Map;
  */
 public interface ExecutionExchange {
 
+    VariableContext getVariableContext();
+
     /**
      * Return the current request object.
      */
@@ -56,6 +58,7 @@ public interface ExecutionExchange {
     interface Builder {
         Builder request(JsonNode request);
         Builder response(JsonNode response);
+        Builder variableContext(VariableContext variableContext);
         ExecutionExchange build();
     }
 }

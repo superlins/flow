@@ -1,6 +1,8 @@
 package com.zwtech.flow.domain.model.apidatasource.r2dbc;
 
 import com.zwtech.flow.domain.model.apidatasource.*;
+import com.zwtech.flow.domain.model.apidatasource.behavior.OperationBehavior;
+import com.zwtech.flow.domain.model.apidatasource.connection.DatasourceConnection;
 import lombok.Data;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.relational.core.mapping.Column;
@@ -136,10 +138,10 @@ class ApiDatasourceEntity {
         DatasourceStatus datasourceStatus = status != null ? DatasourceStatus.valueOf(status) : DatasourceStatus.DISABLED;
         
         // 契约
-        DatasourceContract datasourceContract = null;
+        OperationContract operationContract = null;
         if (inputSchema != null && outputSchema != null) {
             boolean strictValue = strict != null ? strict : false;
-            datasourceContract = new DatasourceContract(inputSchema, outputSchema, strictValue);
+            operationContract = new OperationContract(inputSchema, outputSchema, strictValue);
         }
         
         // 操作和连接（需要反序列化）
@@ -148,13 +150,13 @@ class ApiDatasourceEntity {
         // R2DBC -> SqlOperationSpec, R2dbcConnectionSpec
         // 当前暂时为 null，需要 JSON 反序列化支持
         // 可以使用 Jackson 的 @JsonTypeInfo 和 @JsonSubTypes 实现多态序列化
-        var operation = (com.zwtech.flow.domain.model.apidatasource.operation.OperationSpec) null;
-        var connection = (com.zwtech.flow.domain.model.apidatasource.connection.ConnectionSpec) null;
+        var operation = (OperationBehavior) null;
+        var connection = (DatasourceConnection) null;
         
         // 扩展列表（需要反序列化）
         // TODO: 从 JSON 数组反序列化为 List<Extension>
         // 可以使用 Jackson 的 ObjectMapper.readValue() 反序列化
-        List<Extension> extensions = new ArrayList<>();
+        List<OperationExtension> operationExtensions = new ArrayList<>();
         
         // 使用静态工厂方法恢复对象
         return ApiDatasource.restore(
@@ -162,11 +164,9 @@ class ApiDatasourceEntity {
                 name,
                 description,
                 datasourceType,
-                datasourceStatus,
-                datasourceContract,
+                datasourceStatus, operationContract,
                 operation,
-                connection,
-                extensions,
+                connection, operationExtensions,
                 createdAt,
                 updatedAt
         );

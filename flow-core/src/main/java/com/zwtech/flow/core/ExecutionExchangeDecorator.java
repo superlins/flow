@@ -25,6 +25,11 @@ public class ExecutionExchangeDecorator implements ExecutionExchange {
 
 
     @Override
+    public VariableContext getVariableContext() {
+        return getDelegate().getVariableContext();
+    }
+
+    @Override
     public JsonNode getRequest() {
         return getDelegate().getRequest();
     }

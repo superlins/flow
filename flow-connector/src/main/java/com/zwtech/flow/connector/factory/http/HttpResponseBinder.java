@@ -1,7 +1,7 @@
 package com.zwtech.flow.connector.factory.http;
 
 import com.zwtech.flow.domain.model.apidatasource.ApiDatasource;
-import com.zwtech.flow.domain.model.apidatasource.operation.HttpOperationSpec;
+import com.zwtech.flow.domain.model.apidatasource.behavior.HttpOperationBehavior;
 import tools.jackson.databind.JsonNode;
 
 /**
@@ -17,7 +17,7 @@ public final class HttpResponseBinder {
     }
 
     public static JsonNode bind(HttpResponseSpec responseSpec, ApiDatasource datasource) {
-        HttpOperationSpec operation = (HttpOperationSpec) datasource.operation();
+        HttpOperationBehavior operation = (HttpOperationBehavior) datasource.operation();
         // TODO: 使用 operation.responseBody 模板 + $response.body/$response.headers
         // 生成一个满足 DatasourceContract.output 的 JSON
         return responseSpec.getBody();

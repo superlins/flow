@@ -5,5 +5,5 @@ import com.zwtech.flow.domain.shared.ValueObject;
 /**
  * @author renc
  */
-public interface ConnectionSpec extends ValueObject<ConnectionSpec> {
+public interface DatasourceConnection extends ValueObject<DatasourceConnection> {
 }

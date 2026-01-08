@@ -14,12 +14,11 @@ import java.util.Objects;
  * 
  * 核心职责：
  * - 表达一个面向业务/产品的 API 服务
- * - 通过 BindingSpec 将 ServiceContract 映射到 DatasourceContract
+ * - 将 ServiceContract 映射到 DatasourceContract
  * - 管理完整的生命周期（创建 → 配置 → 启用 → 停用）
  * 
  * 设计原则：
- * - 契约 + 绑定规则 + 一个 Datasource 引用 = ApiService
- * - BindingSpec = 契约之间的数据流声明
+ * - 契约 + 映射规则 + 一个 Datasource 引用 = ApiService
  *
  * @author renc
  */
@@ -30,7 +29,6 @@ public final class ApiService implements DomainEntity<ApiService> {
 
     private ServiceContract contract;
     private DatasourceId datasourceId;
-    private BindingSpec bindingSpec;
 
     private String name;
     private String description;
@@ -73,19 +71,16 @@ public final class ApiService implements DomainEntity<ApiService> {
             String name,
             String description,
             DatasourceId datasourceId,
-            ServiceContract contract,
-            BindingSpec bindingSpec) {
+            ServiceContract contract) {
         
         Assert.notNull(id, "ServiceId must not be null");
         Assert.hasText(name, "name must not be empty");
         Assert.notNull(datasourceId, "DatasourceId must not be null");
         Assert.notNull(contract, "ServiceContract must not be null");
-        Assert.notNull(bindingSpec, "BindingSpec must not be null");
 
         ApiService service = new ApiService(id, contract, datasourceId);
         service.name = name;
         service.description = description != null ? description : "";
-        service.bindingSpec = bindingSpec;
         service.domainEvents.add(new ApiServiceCreated(id, datasourceId));
         return service;
     }
@@ -101,7 +96,6 @@ public final class ApiService implements DomainEntity<ApiService> {
             ServiceStatus status,
             ServiceContract contract,
             DatasourceId datasourceId,
-            BindingSpec bindingSpec,
             Instant createdAt,
             Instant updatedAt) {
         
@@ -110,13 +104,11 @@ public final class ApiService implements DomainEntity<ApiService> {
         Assert.notNull(status, "status must not be null");
         Assert.notNull(contract, "ServiceContract must not be null");
         Assert.notNull(datasourceId, "DatasourceId must not be null");
-        Assert.notNull(bindingSpec, "BindingSpec must not be null");
-        
+
         ApiService service = new ApiService(id, contract, datasourceId);
         service.name = name;
         service.description = description != null ? description : "";
         service.status = status;
-        service.bindingSpec = bindingSpec;
         service.createdAt = createdAt != null ? createdAt : Instant.now();
         service.updatedAt = updatedAt != null ? updatedAt : Instant.now();
         // 注意：恢复时不发布领域事件
@@ -167,13 +159,10 @@ public final class ApiService implements DomainEntity<ApiService> {
      * 更新服务契约和绑定规则
      * 
      * @param newContract 新契约
-     * @param newBindingSpec 新绑定规则
      */
-    public void updateContract(ServiceContract newContract, BindingSpec newBindingSpec) {
+    public void updateContract(ServiceContract newContract) {
         Assert.notNull(newContract, "newContract must not be null");
-        Assert.notNull(newBindingSpec, "newBindingSpec must not be null");
         this.contract = newContract;
-        this.bindingSpec = newBindingSpec;
         touch();
     }
 
@@ -220,10 +209,6 @@ public final class ApiService implements DomainEntity<ApiService> {
 
     public DatasourceId datasourceId() {
         return datasourceId;
-    }
-
-    public BindingSpec bindingSpec() {
-        return bindingSpec;
     }
 
     public Instant createdAt() {

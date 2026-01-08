@@ -1,7 +1,7 @@
 package com.zwtech.flow.domain.model.apidatasource;
 
-import com.zwtech.flow.domain.model.apidatasource.connection.ConnectionSpec;
-import com.zwtech.flow.domain.model.apidatasource.operation.OperationSpec;
+import com.zwtech.flow.domain.model.apidatasource.connection.DatasourceConnection;
+import com.zwtech.flow.domain.model.apidatasource.behavior.OperationBehavior;
 import com.zwtech.flow.domain.shared.DomainEntity;
 import org.springframework.util.Assert;
 
@@ -9,6 +9,7 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 
 /**
  * ApiDatasource 聚合根
@@ -29,12 +30,8 @@ public final class ApiDatasource implements DomainEntity<ApiDatasource> {
 
     private DatasourceType type;
     private DatasourceStatus status;
-
-    private DatasourceContract contract;
-    private OperationSpec operation;
-    private ConnectionSpec connection;
-
-    private List<Extension> extensions;
+    private DatasourceConnection connection;
+    private Map<String, DatasourceOperation> operations;
 
     private final List<Object> domainEvents = new ArrayList<>();
 
@@ -44,7 +41,6 @@ public final class ApiDatasource implements DomainEntity<ApiDatasource> {
     private ApiDatasource(DatasourceId id) {
         this.id = id;
         this.status = DatasourceStatus.DISABLED;
-        this.extensions = new ArrayList<>();
         this.createdAt = Instant.now();
         this.updatedAt = this.createdAt;
     }
@@ -61,10 +57,9 @@ public final class ApiDatasource implements DomainEntity<ApiDatasource> {
             String description,
             DatasourceType type,
             DatasourceStatus status,
-            DatasourceContract contract,
-            OperationSpec operation,
-            ConnectionSpec connection,
-            List<Extension> extensions,
+            Map<String, DatasourceOperation> operations,
+            DatasourceConnection connection,
+            List<OperationExtension> operationExtensions,
             Instant createdAt,
             Instant updatedAt) {
         
@@ -78,10 +73,8 @@ public final class ApiDatasource implements DomainEntity<ApiDatasource> {
         ds.description = description != null ? description : "";
         ds.type = type;
         ds.status = status;
-        ds.contract = contract;
-        ds.operation = operation;
+        ds.operations = operations;
         ds.connection = connection;
-        ds.extensions = extensions != null ? new ArrayList<>(extensions) : new ArrayList<>();
         ds.createdAt = createdAt != null ? createdAt : Instant.now();
         ds.updatedAt = updatedAt != null ? updatedAt : Instant.now();
         return ds;
@@ -112,31 +105,27 @@ public final class ApiDatasource implements DomainEntity<ApiDatasource> {
      * @param contract 契约
      * @param operation 操作规范
      * @param connection 连接规范
-     * @param extensions 扩展列表
+     * @param operationExtensions 扩展列表
      * @throws IllegalStateException 如果已经配置过或已启用
      */
     public void configure(
             DatasourceType type,
             String name,
             String description,
-            DatasourceContract contract,
-            OperationSpec operation,
-            ConnectionSpec connection,
-            List<Extension> extensions) {
+            OperationContract contract,
+            OperationBehavior operation,
+            DatasourceConnection connection,
+            List<OperationExtension> operationExtensions) {
         
         Assert.notNull(type, "type must not be null");
         Assert.hasText(name, "name must not be empty");
         Assert.notNull(contract, "contract must not be null");
         Assert.notNull(operation, "operation must not be null");
         Assert.notNull(connection, "connection must not be null");
-        Assert.notNull(extensions, "extensions must not be null");
+        Assert.notNull(operationExtensions, "extensions must not be null");
         
         if (this.status == DatasourceStatus.ENABLED) {
             throw new DatasourceNotConfiguredException(id);
-        }
-        
-        if (this.contract != null) {
-            throw new DatasourceAlreadyConfiguredException(id);
         }
         
         this.type = type;
@@ -145,7 +134,7 @@ public final class ApiDatasource implements DomainEntity<ApiDatasource> {
         this.contract = contract;
         this.operation = operation;
         this.connection = connection;
-        this.extensions = new ArrayList<>(extensions);
+        this.extensions = new ArrayList<>(operationExtensions);
         
         touch();
     }
@@ -182,9 +171,9 @@ public final class ApiDatasource implements DomainEntity<ApiDatasource> {
      */
     public void updateCoreFields(
             boolean isReferenced,
-            DatasourceContract contract,
-            OperationSpec operation,
-            ConnectionSpec connection) {
+            OperationContract contract,
+            OperationBehavior operation,
+            DatasourceConnection connection) {
         
         Assert.notNull(contract, "contract must not be null");
         Assert.notNull(operation, "operation must not be null");
@@ -208,11 +197,11 @@ public final class ApiDatasource implements DomainEntity<ApiDatasource> {
     /**
      * 更新扩展列表
      * 
-     * @param extensions 新扩展列表
+     * @param operationExtensions 新扩展列表
      */
-    public void updateExtensions(List<Extension> extensions) {
-        Assert.notNull(extensions, "extensions must not be null");
-        this.extensions = new ArrayList<>(extensions);
+    public void updateExtensions(List<OperationExtension> operationExtensions) {
+        Assert.notNull(operationExtensions, "extensions must not be null");
+        this.extensions = new ArrayList<>(operationExtensions);
         touch();
     }
 
@@ -280,19 +269,19 @@ public final class ApiDatasource implements DomainEntity<ApiDatasource> {
         return status;
     }
 
-    public DatasourceContract contract() {
+    public OperationContract contract() {
         return contract;
     }
 
-    public OperationSpec operation() {
+    public OperationBehavior operation() {
         return operation;
     }
 
-    public ConnectionSpec connection() {
+    public DatasourceConnection connection() {
         return connection;
     }
 
-    public List<Extension> extensions() {
+    public List<OperationExtension> extensions() {
         return Collections.unmodifiableList(extensions);
     }
 

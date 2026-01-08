@@ -8,12 +8,12 @@ import java.util.Objects;
  *
  * @author renc
  */
-public final class HttpConnectionSpec implements ConnectionSpec {
+public final class HttpDatasourceConnection implements DatasourceConnection {
 
     private final Integer connectTimeout;
     private final Integer readTimeout;
 
-    public HttpConnectionSpec(Integer connectTimeout, Integer readTimeout) {
+    public HttpDatasourceConnection(Integer connectTimeout, Integer readTimeout) {
         this.connectTimeout = connectTimeout;
         this.readTimeout = readTimeout;
     }
@@ -27,8 +27,8 @@ public final class HttpConnectionSpec implements ConnectionSpec {
     }
 
     @Override
-    public boolean sameValueAs(ConnectionSpec other) {
-        if (!(other instanceof HttpConnectionSpec o)) {
+    public boolean sameValueAs(DatasourceConnection other) {
+        if (!(other instanceof HttpDatasourceConnection o)) {
             return false;
         }
         return Objects.equals(this.connectTimeout, o.connectTimeout)
@@ -37,7 +37,7 @@ public final class HttpConnectionSpec implements ConnectionSpec {
 
     @Override
     public boolean equals(Object o) {
-        return (o instanceof ConnectionSpec other) && sameValueAs(other);
+        return (o instanceof DatasourceConnection other) && sameValueAs(other);
     }
 
     @Override

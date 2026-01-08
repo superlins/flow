@@ -2,7 +2,7 @@ package com.zwtech.flow.connector.factory.http;
 
 import com.zwtech.flow.core.ExecutionExchange;
 import com.zwtech.flow.domain.model.apidatasource.ApiDatasource;
-import com.zwtech.flow.domain.model.apidatasource.operation.HttpOperationSpec;
+import com.zwtech.flow.domain.model.apidatasource.behavior.HttpOperationBehavior;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import tools.jackson.databind.JsonNode;
@@ -23,7 +23,7 @@ public final class HttpRequestBinder {
     }
 
     public static HttpRequestSpec bind(ExecutionExchange exchange, ApiDatasource datasource) {
-        HttpOperationSpec operation = (HttpOperationSpec) datasource.operation();
+        HttpOperationBehavior operation = (HttpOperationBehavior) datasource.operation();
 
         // Datasource input JSON：未来可作为模板环境中的 $request 使用
         JsonNode requestNode = exchange.getRequest();

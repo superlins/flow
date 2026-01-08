@@ -11,7 +11,7 @@ import com.zwtech.flow.connector.filter.DefaultConnectorFilterChain;
 import com.zwtech.flow.core.ExecutionExchange;
 import com.zwtech.flow.core.plugin.SpringPluginManager;
 import com.zwtech.flow.domain.model.apidatasource.ApiDatasource;
-import com.zwtech.flow.domain.model.apidatasource.operation.HttpOperationSpec;
+import com.zwtech.flow.domain.model.apidatasource.behavior.HttpOperationBehavior;
 import com.zwtech.flow.domain.service.SchemaValidationService;
 import org.springframework.expression.Expression;
 import org.springframework.expression.common.LiteralExpression;
@@ -59,7 +59,7 @@ public class HttpConnectorAdapter implements ConnectorAdapter {
 
         // 1. 拿到 Datasource 契约
         var contract = datasource.contract();
-        var operation = (HttpOperationSpec) datasource.operation();
+        var operation = (HttpOperationBehavior) datasource.operation();
 
         // 2. 从 ExecutionExchange.context.input 取出 JsonNode
         JsonNode inputNode = exchange.getRequest();
