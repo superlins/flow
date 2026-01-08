@@ -6,13 +6,13 @@ import org.springframework.util.Assert;
 /**
  * @author renc
  */
-public final class OperationContract implements ValueObject<OperationContract> {
+public final class DatasourceContract implements ValueObject<DatasourceContract> {
 
     private final String inputSchema;
     private final String outputSchema;
     private final boolean strict;
 
-    public OperationContract(String inputSchema, String outputSchema, boolean strict) {
+    public DatasourceContract(String inputSchema, String outputSchema, boolean strict) {
         Assert.hasText(inputSchema, "inputSchema must not be empty");
         Assert.hasText(outputSchema, "outputSchema must not be empty");
         this.inputSchema = inputSchema;
@@ -33,7 +33,7 @@ public final class OperationContract implements ValueObject<OperationContract> {
     }
 
     @Override
-    public boolean sameValueAs(OperationContract other) {
+    public boolean sameValueAs(DatasourceContract other) {
         return other != null && strict == other.strict && inputSchema.equals(other.inputSchema) && outputSchema.equals(other.outputSchema);
     }
 
@@ -42,7 +42,7 @@ public final class OperationContract implements ValueObject<OperationContract> {
         if (o == null || getClass() != o.getClass())
             return false;
 
-        OperationContract that = (OperationContract) o;
+        DatasourceContract that = (DatasourceContract) o;
         return sameValueAs(that);
     }
 

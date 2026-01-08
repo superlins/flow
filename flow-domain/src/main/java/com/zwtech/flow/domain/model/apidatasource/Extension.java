@@ -15,11 +15,11 @@ import java.util.Objects;
  *
  * @author renc
  */
-public final class OperationExtension implements ValueObject<OperationExtension> {
+public final class Extension implements ValueObject<Extension> {
     
     private final String id;
 
-    public OperationExtension(String id) {
+    public Extension(String id) {
         Assert.hasText(id, "Extension id must not be empty");
         this.id = id;
     }
@@ -29,13 +29,13 @@ public final class OperationExtension implements ValueObject<OperationExtension>
     }
 
     @Override
-    public boolean sameValueAs(OperationExtension other) {
+    public boolean sameValueAs(Extension other) {
         return other != null && id.equals(other.id);
     }
 
     @Override
     public boolean equals(Object o) {
-        return (o instanceof OperationExtension other) && sameValueAs(other);
+        return (o instanceof Extension other) && sameValueAs(other);
     }
 
     @Override

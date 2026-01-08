@@ -1,14 +1,13 @@
 package com.zwtech.flow.domain.model.apidatasource;
 
+import com.zwtech.flow.domain.model.apidatasource.operation.DatasourceOperation;
 import com.zwtech.flow.domain.model.apidatasource.connection.DatasourceConnection;
 import com.zwtech.flow.domain.shared.DomainEntity;
 import org.springframework.util.Assert;
 
 import java.time.Instant;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
-import java.util.Map;
 
 /**
  * ApiDatasource 聚合根
@@ -30,7 +29,10 @@ public final class ApiDatasource implements DomainEntity<ApiDatasource> {
     private DatasourceType type;
     private DatasourceStatus status;
     private DatasourceConnection connection;
-    private Map<String, DatasourceOperation> operations;
+    private DatasourceContract contract;
+    private DatasourceOperation operation;
+
+    private List<Extension> extensions;
 
     private final List<Object> domainEvents = new ArrayList<>();
 
@@ -40,6 +42,7 @@ public final class ApiDatasource implements DomainEntity<ApiDatasource> {
     private ApiDatasource(DatasourceId id) {
         this.id = id;
         this.status = DatasourceStatus.DISABLED;
+        this.extensions = new ArrayList<>();
         this.createdAt = Instant.now();
         this.updatedAt = this.createdAt;
     }
@@ -56,9 +59,9 @@ public final class ApiDatasource implements DomainEntity<ApiDatasource> {
             String description,
             DatasourceType type,
             DatasourceStatus status,
-            Map<String, DatasourceOperation> operations,
+            DatasourceOperation operation,
             DatasourceConnection connection,
-            List<OperationExtension> operationExtensions,
+            List<Extension> extensions,
             Instant createdAt,
             Instant updatedAt) {
         
@@ -72,10 +75,11 @@ public final class ApiDatasource implements DomainEntity<ApiDatasource> {
         ds.description = description != null ? description : "";
         ds.type = type;
         ds.status = status;
-        ds.operations = operations;
+        ds.operation = operation;
         ds.connection = connection;
         ds.createdAt = createdAt != null ? createdAt : Instant.now();
         ds.updatedAt = updatedAt != null ? updatedAt : Instant.now();
+        ds.extensions = extensions != null ? new ArrayList<>(extensions) : new ArrayList<>();
         return ds;
     }
 
@@ -101,7 +105,7 @@ public final class ApiDatasource implements DomainEntity<ApiDatasource> {
      * @param type 数据源类型
      * @param name 名称
      * @param description 描述
-     * @param operations 操作集合（Map<operationKey, DatasourceOperation>）
+     * @param operation 操作
      * @param connection 连接规范
      * @throws IllegalStateException 如果已经配置过或已启用
      */
@@ -109,14 +113,15 @@ public final class ApiDatasource implements DomainEntity<ApiDatasource> {
             DatasourceType type,
             String name,
             String description,
-            Map<String, DatasourceOperation> operations,
-            DatasourceConnection connection) {
+            DatasourceOperation operation,
+            DatasourceConnection connection,
+            List<Extension> extensions) {
         
         Assert.notNull(type, "type must not be null");
         Assert.hasText(name, "name must not be empty");
-        Assert.notNull(operations, "operations must not be null");
-        Assert.notEmpty(operations, "operations must not be empty");
+        Assert.notNull(operation, "operation must not be null");
         Assert.notNull(connection, "connection must not be null");
+        Assert.notNull(extensions, "extensions must not be null");
         
         if (this.status == DatasourceStatus.ENABLED) {
             throw new DatasourceNotConfiguredException(id);
@@ -125,9 +130,21 @@ public final class ApiDatasource implements DomainEntity<ApiDatasource> {
         this.type = type;
         this.name = name;
         this.description = description != null ? description : "";
-        this.operations = new java.util.HashMap<>(operations);
+        this.operation = operation;
         this.connection = connection;
+        this.extensions = new ArrayList<>(extensions);
         
+        touch();
+    }
+
+    /**
+     * 更新扩展列表
+     *
+     * @param extensions 新扩展列表
+     */
+    public void updateExtensions(List<Extension> extensions) {
+        Assert.notNull(extensions, "extensions must not be null");
+        this.extensions = new ArrayList<>(extensions);
         touch();
     }
 
@@ -156,17 +173,16 @@ public final class ApiDatasource implements DomainEntity<ApiDatasource> {
      * 必须确保未被引用（DS-1 规则）
      * 
      * @param isReferenced 是否被引用的检查结果（由应用服务层提供）
-     * @param operations 新操作集合
+     * @param operation 新操作
      * @param connection 新连接规范
      * @throws IllegalStateException 如果被引用或已启用
      */
     public void updateCoreFields(
             boolean isReferenced,
-            Map<String, DatasourceOperation> operations,
+            DatasourceOperation operation,
             DatasourceConnection connection) {
         
-        Assert.notNull(operations, "operations must not be null");
-        Assert.notEmpty(operations, "operations must not be empty");
+        Assert.notNull(operation, "operation must not be null");
         Assert.notNull(connection, "connection must not be null");
         
         if (isReferenced) {
@@ -177,28 +193,9 @@ public final class ApiDatasource implements DomainEntity<ApiDatasource> {
             throw new DatasourceNotConfiguredException(id);
         }
         
-        this.operations = new java.util.HashMap<>(operations);
+        this.operation = operation;
         this.connection = connection;
         
-        touch();
-    }
-
-    /**
-     * 更新指定 Operation 的扩展列表
-     * 
-     * @param operationKey Operation 的 key
-     * @param extensions 新扩展列表
-     */
-    public void updateOperationExtensions(String operationKey, List<OperationExtension> extensions) {
-        Assert.hasText(operationKey, "operationKey must not be empty");
-        Assert.notNull(extensions, "extensions must not be null");
-        
-        DatasourceOperation operation = this.operations.get(operationKey);
-        if (operation == null) {
-            throw new IllegalArgumentException("Operation with key '" + operationKey + "' not found");
-        }
-        
-        operation.setExtensions(new ArrayList<>(extensions));
         touch();
     }
 
@@ -210,18 +207,7 @@ public final class ApiDatasource implements DomainEntity<ApiDatasource> {
         if (this.status == DatasourceStatus.ENABLED) {
             return;
         }
-        
-        if (this.operations == null || this.operations.isEmpty() || this.connection == null) {
-            throw new DatasourceNotConfiguredException(id);
-        }
-        
-        // 验证所有 Operation 都已配置完整
-        for (DatasourceOperation op : this.operations.values()) {
-            if (op.getContract() == null || op.getBehavior() == null) {
-                throw new DatasourceNotConfiguredException(id);
-            }
-        }
-        
+
         this.status = DatasourceStatus.ENABLED;
         domainEvents.add(new ApiDatasourceEnabledEvent(id));
         touch();
@@ -250,7 +236,7 @@ public final class ApiDatasource implements DomainEntity<ApiDatasource> {
     }
 
     public boolean isConfigured() {
-        return operations != null && !operations.isEmpty() && connection != null;
+        return operation != null && connection != null;
     }
 
     public DatasourceId id() {
@@ -273,28 +259,16 @@ public final class ApiDatasource implements DomainEntity<ApiDatasource> {
         return status;
     }
 
-    public Map<String, DatasourceOperation> operations() {
-        return operations != null ? Collections.unmodifiableMap(operations) : Collections.emptyMap();
-    }
-
-    /**
-     * 获取指定 key 的 Operation
-     * 
-     * @param operationKey Operation 的 key
-     * @return DatasourceOperation
-     * @throws IllegalArgumentException 如果 operationKey 不存在
-     */
-    public DatasourceOperation getOperation(String operationKey) {
-        Assert.hasText(operationKey, "operationKey must not be empty");
-        DatasourceOperation operation = operations != null ? operations.get(operationKey) : null;
-        if (operation == null) {
-            throw new IllegalArgumentException("Operation with key '" + operationKey + "' not found");
-        }
+    public DatasourceOperation operation() {
         return operation;
     }
 
     public DatasourceConnection connection() {
         return connection;
+    }
+
+    public List<Extension> extensions() {
+        return List.copyOf(extensions);
     }
 
     public Instant createdAt() {

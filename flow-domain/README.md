@@ -457,10 +457,7 @@ public interface ApiDatasourceRepository {
 
 ### 13.1 待完善点
 
-1. **多 Operation 支持**：一个 Datasource 支持多个 Operation（当前为单一 Operation）
-2. **Connection 复用**：多个 Operation 共享同一个 Connection
-3. **Schema 版本管理**：Contract 的 Schema 也需要版本化
-4. **插件配置管理**：Extension 的配置存储和加载机制
+1**插件配置管理**：Extension 的配置存储和加载机制
 
 ### 13.2 扩展点
 
@@ -474,84 +471,11 @@ public interface ApiDatasourceRepository {
 
 - **聚合根**：`com.zwtech.flow.domain.model.apidatasource.ApiDatasource`
 - **标识**：`com.zwtech.flow.domain.model.apidatasource.DatasourceId`
-- **契约**：`com.zwtech.flow.domain.model.apidatasource.OperationContract`
-- **操作**：`com.zwtech.flow.domain.model.apidatasource.behavior.OperationBehavior`
+- **契约**：`com.zwtech.flow.domain.model.apidatasource.DatasourceContract`
+- **操作**：`com.zwtech.flow.domain.model.apidatasource.operation.DatasourceOperation`
 - **连接**：`com.zwtech.flow.domain.model.apidatasource.connection.DatasourceConnection`
 - **仓储**：`com.zwtech.flow.domain.model.apidatasource.ApiDatasourceRepository`
 - **实现**：`com.zwtech.flow.domain.model.apidatasource.r2dbc.R2dbcApiDatasourceRepository`
-
----
-
----
-
-## 14. 实现状态与待完善项
-
-### 14.1 已实现
-
-✅ **核心领域模型**
-
-- ApiDatasource 聚合根完整实现
-- DatasourceId (key, version) 标识设计
-- DatasourceContract 契约设计
-- OperationSpec 和 ConnectionSpec 职责分离
-- Extension 扩展声明（无 version，版本通过 DatasourceId 管理）
-
-✅ **领域行为**
-
-- `create()` - 创建新的 Datasource
-- `configure()` - 配置核心字段（一次性配置）
-- `updateMetadata()` - 更新可变字段（name、description）
-- `updateCoreFields()` - 更新核心字段（实现 DS-1 规则检查）
-- `updateExtensions()` - 更新扩展列表
-- `enable()` / `disable()` - 状态管理（实现 DS-2 规则）
-
-✅ **Repository 设计**
-
-- 领域模型与持久化模型分离
-- 使用 `restore()` 静态工厂方法恢复领域对象
-- 语义翻译职责明确
-
-### 14.2 待完善
-
-⚠️ **JSON 序列化/反序列化**
-
-- OperationSpec 和 ConnectionSpec 的多态序列化
-- Extension 列表的 JSON 数组序列化
-- 需要集成 Jackson 或类似 JSON 库
-- 使用 `@JsonTypeInfo` 和 `@JsonSubTypes` 实现多态
-
-⚠️ **isReferenced() 实现**
-
-- 需要查询 FLW_API_SERVICE 表
-- 检查 datasourceId 引用关系
-- 当前返回 false（占位实现）
-
-⚠️ **数据库字段**
-
-- 需要添加 `STRICT_` 字段到 FLW_API_DATASOURCE 表
-- 用于存储 DatasourceContract 的 strict 标志
-
-### 14.3 设计决策记录
-
-**决策 1：ApiDatasource 的修改策略**
-
-- ✅ 允许修改可变字段（name、description）
-- ✅ 核心字段（contract、operation、connection）修改前必须检查引用状态（DS-1）
-- ✅ 通过 `updateCoreFields(boolean isReferenced, ...)` 方法，由应用服务层提供引用检查结果
-
-**决策 2：Extension 版本管理**
-
-- ✅ Extension 不需要单独的 version 字段
-- ✅ 版本通过 DatasourceId 的 version 来管理
-- ✅ Extension 只声明插件 id
-
-**决策 3：OperationSpec**
-
-- ✅ HttpOperationSpec 包含所有和 http 相关的参数，如 query/headers/body/method/path
-
-**决策 4：Option 字段**
-
-- ⏸️ 暂时不实现，待后续需求明确
 
 ---
 
@@ -644,7 +568,7 @@ ApiService 处理用户请求并做出响应
     "timeout": {
       "timeout": "PT5S",
       "connectionTimeout": "PT1S",
-      "responseTimeout": "PT1S",
+      "responseTimeout": "PT1S"
     },
     "retry": {
       "maxAttempts": 1
@@ -652,77 +576,69 @@ ApiService 处理用户请求并做出响应
     "rateLimiter": {},
     "cache": {}
   },
-  "operations": [
-    {
-      "operationId": "createOrder",
-      "contract": {
-        "input": {
-          "type": "object",
-          "properties": {
-            "userId": {
-              "type": "string",
-              "description": "User ID"
-            }
-          },
-          "required": [
-            "userId"
+  "contract": {
+    "input": {
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "User ID"
+        }
+      },
+      "required": [
+        "userId"
+      ]
+    },
+    "output": {
+      "type": "object",
+      "properties": {
+        "orderId": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "pending",
+            "confirmed"
           ]
         },
-        "output": {
-          "type": "object",
-          "properties": {
-            "orderId": {
-              "type": "string"
-            },
-            "status": {
-              "type": "string",
-              "enum": [
-                "pending",
-                "confirmed"
-              ]
-            },
-            "totalAmount": {
-              "type": "number"
-            }
-          }
+        "totalAmount": {
+          "type": "number"
         }
+      }
+    }
+  },
+  "operation": {
+    "path": "/user/{{ #request.userId }}/orders",
+    "method": "POST",
+    "request": {
+      "headers": {
+        "X-User-Agent": "airflow"
       },
-      "behaviour": {
-        "path": "/user/{{ $request.userId }}/orders",
-        "method": "POST",
-        "request": {
-          "headers": {
-            "X-User-Agent": "airflow"
-          },
-          "queryParams": {
-            "userId": "{{ $request.userId }}"
-          },
-          "contentType": "application/json",
-          "body": {
-            "user": {
-              "id": "{{ $request.userId }}"
-            }
-          },
-        },
-        "response": {
-          "headers": {
-            "X-User-ID": "uuid()-v4"
-          },
-          "contentType": "application/json",
-          "body": {
-            "status": "{{ $response.status }}",
-            "data": "{{ $response.body.result }}"
-          }
-        }
+      "queryParams": {
+        "userId": "{{ #request.userId }}"
       },
-      "extension": [
-        {
-          "id": "oauth2-enricher"
-        },
-        {
-          "id": "logging"
+      "contentType": "application/json",
+      "body": {
+        "user": {
+          "id": "{{ #request.userId }}"
         }
-      ],
+      }
+    },
+    "response": {
+      "contentType": "application/json",
+      "body": {
+        "status": "{{ #response.status }}",
+        "data": "{{ $#esponse.body.result }}"
+      }
+    }
+  },
+  "extensions": [
+    {
+      "id": "oauth2-enricher"
+    },
+    {
+      "id": "logging"
     }
   ],
   "tags": [
@@ -750,56 +666,51 @@ ApiService 处理用户请求并做出响应
     "ssl": true,
     "poolSize": 5
   },
-  "operations": [
-    {
-      "operationId": "getUserOrders",
-      "contract": {
-        "input": {
-          "type": "object",
-          "properties": {
-            "userId": {
-              "type": "string"
-            },
-            "limit": {
-              "type": "integer",
-              "default": 10,
-              "maximum": 100
-            }
-          },
-          "required": [
-            "userId"
-          ]
+  "contract": {
+    "input": {
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string"
         },
-        "output": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "properties": {
-              "orderId": {
-                "type": "string"
-              },
-              "product": {
-                "type": "string"
-              },
-              "amount": {
-                "type": "number"
-              },
-              "createdAt": {
-                "type": "string",
-                "format": "date-time"
-              }
-            }
-          }
+        "limit": {
+          "type": "integer",
+          "default": 10,
+          "maximum": 100
         }
       },
-      "behaviour": {
-        "sql": "SELECT order_id AS orderId, product_name AS product, amount, created_at AS createdAt FROM orders WHERE user_id = :userId ORDER BY created_at DESC LIMIT :limit",
-        "params": {
-          "userId": "{{ $request.userId }}",
-          "limit": "{{ $request.limit | INTEGER }}"
+      "required": [
+        "userId"
+      ]
+    },
+    "output": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "orderId": {
+            "type": "string"
+          },
+          "product": {
+            "type": "string"
+          },
+          "amount": {
+            "type": "number"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
         }
       }
     }
-  ]
+  },
+  "operation": {
+    "sql": "SELECT order_id AS orderId, product_name AS product, amount, created_at AS createdAt FROM orders WHERE user_id = :userId ORDER BY created_at DESC LIMIT :limit",
+    "params": {
+      "userId": "{{ #request.userId }}",
+      "limit": "{{ #request.limit | INTEGER }}"
+    }
+  }
 }
 ```

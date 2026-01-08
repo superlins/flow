@@ -4,10 +4,9 @@ import com.zwtech.flow.core.DefaultVariableContext;
 import com.zwtech.flow.core.ExecutionExchange;
 import com.zwtech.flow.core.VariableContext;
 import com.zwtech.flow.core.parser.TemplateExpressionParser;
-import com.zwtech.flow.domain.model.apidatasource.behavior.HttpOperationBehavior;
+import com.zwtech.flow.domain.model.apidatasource.operation.HttpDatasourceOperation;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
-import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 
 import java.util.HashMap;
@@ -35,7 +34,7 @@ public final class HttpRequestBinder {
      * @param connectionBaseUrl 连接的基础 URL（从 ConnectionSpec 获取）
      * @return HttpRequestSpec
      */
-    public static HttpRequestSpec bind(ExecutionExchange exchange, HttpOperationBehavior operation, String connectionBaseUrl) {
+    public static HttpRequestSpec bind(ExecutionExchange exchange, HttpDatasourceOperation operation, String connectionBaseUrl) {
         // 创建变量上下文
         VariableContext variableContext = new DefaultVariableContext(exchange.getRequest(), exchange.getResponse());
 

@@ -1,6 +1,6 @@
 package com.zwtech.flow.domain.service;
 
-import com.zwtech.flow.domain.model.apidatasource.OperationContract;
+import com.zwtech.flow.domain.model.apidatasource.DatasourceContract;
 import com.zwtech.flow.domain.model.apiservice.BindingSpec;
 import com.zwtech.flow.domain.model.apiservice.ServiceContract;
 
@@ -39,5 +39,5 @@ public interface ApiServiceSchemaCompatibilityService {
     //
     // repository.save(service);
 
-    void assertCompatible(ServiceContract serviceContract, BindingSpec bindingSpec, OperationContract operationContract);
+    void assertCompatible(ServiceContract serviceContract, BindingSpec bindingSpec, DatasourceContract datasourceContract);
 }

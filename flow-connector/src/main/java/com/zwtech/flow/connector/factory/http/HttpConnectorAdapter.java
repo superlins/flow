@@ -12,7 +12,7 @@ import com.zwtech.flow.core.DefaultVariableContext;
 import com.zwtech.flow.core.ExecutionExchange;
 import com.zwtech.flow.core.plugin.SpringPluginManager;
 import com.zwtech.flow.domain.model.apidatasource.ApiDatasource;
-import com.zwtech.flow.domain.model.apidatasource.behavior.HttpOperationBehavior;
+import com.zwtech.flow.domain.model.apidatasource.operation.HttpDatasourceOperation;
 import com.zwtech.flow.domain.model.apidatasource.connection.HttpDatasourceConnection;
 import com.zwtech.flow.domain.service.SchemaValidationService;
 import reactor.core.publisher.Mono;
@@ -58,7 +58,7 @@ public class HttpConnectorAdapter implements ConnectorAdapter {
         // 1. 获取指定的 Operation
         var operation = datasource.getOperation(operationKey);
         var contract = operation.getContract();
-        var behavior = (HttpOperationBehavior) operation.getBehavior();
+        var behavior = (HttpDatasourceOperation) operation.getBehavior();
 
         // 2. 从 ExecutionExchange 取出 JsonNode
         JsonNode inputNode = exchange.getRequest();
