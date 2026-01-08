@@ -8,15 +8,13 @@ import com.zwtech.flow.connector.factory.ConnectorEndpointTypeNames;
 import com.zwtech.flow.connector.filter.ConnectorFilter;
 import com.zwtech.flow.connector.filter.ConnectorFilterChain;
 import com.zwtech.flow.connector.filter.DefaultConnectorFilterChain;
+import com.zwtech.flow.core.DefaultVariableContext;
 import com.zwtech.flow.core.ExecutionExchange;
 import com.zwtech.flow.core.plugin.SpringPluginManager;
 import com.zwtech.flow.domain.model.apidatasource.ApiDatasource;
 import com.zwtech.flow.domain.model.apidatasource.behavior.HttpOperationBehavior;
+import com.zwtech.flow.domain.model.apidatasource.connection.HttpDatasourceConnection;
 import com.zwtech.flow.domain.service.SchemaValidationService;
-import org.springframework.expression.Expression;
-import org.springframework.expression.common.LiteralExpression;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpMethod;
 import reactor.core.publisher.Mono;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
@@ -55,43 +53,35 @@ public class HttpConnectorAdapter implements ConnectorAdapter {
     }
 
     @Override
-    public Mono<ExecutionExchange> execute(ExecutionExchange exchange, ApiDatasource datasource) {
+    public Mono<ExecutionExchange> execute(ExecutionExchange exchange, ApiDatasource datasource, String operationKey) {
 
-        // 1. 拿到 Datasource 契约
-        var contract = datasource.contract();
-        var operation = (HttpOperationBehavior) datasource.operation();
+        // 1. 获取指定的 Operation
+        var operation = datasource.getOperation(operationKey);
+        var contract = operation.getContract();
+        var behavior = (HttpOperationBehavior) operation.getBehavior();
 
-        // 2. 从 ExecutionExchange.context.input 取出 JsonNode
+        // 2. 从 ExecutionExchange 取出 JsonNode
         JsonNode inputNode = exchange.getRequest();
 
-        // 3. 按 Datasource.inputSchema 做运行期 JSON Schema 校验
+        // 3. 按 Operation Contract 的 inputSchema 做运行期 JSON Schema 校验
         schemaValidationService.validate(contract.inputSchema(), inputNode);
 
-        // 3.1 TODO 根据 contract.inputSchema() 解析当前 http 请求的 body/headers/params/pathVariables
+        // 4. 获取 Connection 配置
+        var connection = (HttpDatasourceConnection) datasource.connection();
+        String baseUrl = connection != null ? connection.baseUrl() : null;
 
-        var httpHeaders = new HttpHeaders();
-        operation.headers().forEach(httpHeaders::add);
+        // 5. 将输入绑定为 HttpRequestSpec（使用 HttpRequestBinder 解析模板表达式）
+        var requestSpec = HttpRequestBinder.bind(exchange, behavior, baseUrl);
 
-        // 4. 将输入绑定为 HttpRequestSpec TODO(renc): 根据 datasource 的 operation、connection、contract 结合 inputNode 来构建 HttpRequestSpec
-        var requestSpec = HttpRequestSpec.builder()
-                .url(operation.url())
-                .method(HttpMethod.valueOf(operation.method()))
-                .headers(httpHeaders)
-                .body(operation.requestBody())
-                .queryParams(operation.queryParams())
-                .timeout(operation.timeout())
-                .retries(0)
-                .build();
-
-        // 5. 构建 ExecutionEnvelope（不可变）
+        // 6. 构建 ExecutionEnvelope（不可变）
         ExecutionEnvelope<HttpRequestSpec, HttpResponseSpec> envelope = DefaultExecutionEnvelope.of(requestSpec);
 
-        // 6. 创建 Connector - 通过 datasource.connection 创建客户端实例
+        // 7. 创建 Connector - 通过 datasource.connection 创建客户端实例
         Connector<HttpRequestSpec, HttpResponseSpec> connector = connectorFactory.create(datasource);
 
-        // 7. 构建 Filter 列表（全局 + 插件）
+        // 8. 构建 Filter 列表（全局 + 插件）
         var filters = new LinkedList<ConnectorFilter<HttpRequestSpec, HttpResponseSpec>>();
-        datasource.extensions().forEach(extension -> {
+        operation.getExtensions().forEach(extension -> {
             var extensions = pluginManager.getExtensions(ConnectorFilter.class, extension.id());
             for (var connectorFilter : extensions) {
                 //noinspection unchecked
@@ -99,27 +89,43 @@ public class HttpConnectorAdapter implements ConnectorAdapter {
             }
         });
 
-        // 8. 构建 ConnectorFilterChain
+        // 9. 构建 ConnectorFilterChain
         ConnectorFilterChain chain = new DefaultConnectorFilterChain<>(connector, filters);
 
-        // 9. 执行 Filter 链和 Connector
+        // 10. 执行 Filter 链和 Connector
         return chain.filter(envelope).map(finalEnvelope -> {
             HttpResponseSpec respSpec = finalEnvelope.responseSpec()
                     .orElseThrow(() -> new IllegalStateException("ResponseSpec is empty"));
 
             exchange.getAttributes().put("rawHttpResponse", respSpec);
 
-            // 10. 将响应结果投影到 Datasource.operation.responseBody 并返回 JsonNode
-            var outputNode = OBJECT_MAPPER.createObjectNode();
-            operation.responseBody().forEach((k, v) -> {
-                // TODO 这里需要完成表达式解析，表达式可能引用请求对象 `$request` 也可能引用的是响应对象 `$response`
-                outputNode.put(k, parseExpression(v).getValue(respSpec, String.class));
-            });
+            // 11. 创建响应时的变量上下文（包含 $request 和 $response）
+            var responseVariableContext = new DefaultVariableContext(
+                    exchange.getRequest(),
+                    convertResponseToJsonNode(respSpec)
+            );
 
-            // 11. 按 Datasource.outputSchema 做运行期 JSON Schema 校验
+            // 12. 将响应结果投影到 Datasource.operation.responseBody 并返回 JsonNode
+            final var outputNode = OBJECT_MAPPER.createObjectNode();
+            if (behavior.responseBody() != null) {
+                var templateParser = new com.zwtech.flow.core.parser.TemplateExpressionParser();
+                behavior.responseBody().forEach((k, v) -> {
+                    Object parsed = templateParser.parseObject(v, responseVariableContext);
+                    if (parsed instanceof JsonNode) {
+                        outputNode.set(k, (JsonNode) parsed);
+                    } else if (parsed != null) {
+                        outputNode.putPOJO(k, parsed);
+                    }
+                });
+            } else {
+                // 如果没有定义 responseBody 映射，直接使用原始响应
+                // outputNode = respSpec.getBody() != null ? respSpec.getBody() : OBJECT_MAPPER.createObjectNode();
+            }
+
+            // 13. 按 Operation Contract 的 outputSchema 做运行期 JSON Schema 校验
             schemaValidationService.validate(contract.outputSchema(), outputNode);
 
-            // 12. 写回 ExecutionExchange.context.output（不可变）
+            // 14. 写回 ExecutionExchange.response（不可变）
             var exchange1 = exchange.mutate().response(outputNode).build();
             var attributes = finalEnvelope.attributes().toMap();
             exchange1.getAttributes().putAll(attributes);
@@ -128,7 +134,30 @@ public class HttpConnectorAdapter implements ConnectorAdapter {
         });
     }
 
-    private Expression parseExpression(Object v) {
-        return new LiteralExpression("1");
+    /**
+     * 将 HttpResponseSpec 转换为 JsonNode，用于表达式解析中的 $response 变量
+     */
+    private JsonNode convertResponseToJsonNode(HttpResponseSpec respSpec) {
+        var responseNode = OBJECT_MAPPER.createObjectNode();
+        if (respSpec.getStatusCode() != null) {
+            responseNode.put("status", respSpec.getStatusCode().value());
+        }
+        if (respSpec.getBody() != null) {
+            responseNode.set("body", respSpec.getBody());
+        }
+        if (respSpec.getHeaders() != null) {
+            var headersNode = OBJECT_MAPPER.createObjectNode();
+            respSpec.getHeaders().forEach((name, values) -> {
+                if (values.size() == 1) {
+                    headersNode.put(name, values.get(0));
+                } else {
+                    var arrayNode = OBJECT_MAPPER.createArrayNode();
+                    values.forEach(arrayNode::add);
+                    headersNode.set(name, arrayNode);
+                }
+            });
+            responseNode.set("headers", headersNode);
+        }
+        return responseNode;
     }
 }

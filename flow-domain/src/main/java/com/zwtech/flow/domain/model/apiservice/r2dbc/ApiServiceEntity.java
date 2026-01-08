@@ -59,6 +59,9 @@ class ApiServiceEntity {
     @Column("BINDING_SPEC_")
     private String bindingSpec;
 
+    @Column("OPERATION_KEY_")
+    private String operationKey;
+
     @Column("CREATED_AT_")
     private Instant createdAt;
 
@@ -94,6 +97,9 @@ class ApiServiceEntity {
             entity.setDatasourceVersion(service.datasourceId().version());
         }
         
+        // Operation Key
+        entity.setOperationKey(service.operationKey());
+        
         // 时间戳
         entity.setCreatedAt(service.createdAt());
         entity.setUpdatedAt(service.updatedAt());
@@ -126,6 +132,7 @@ class ApiServiceEntity {
                 status,
                 contract,
                 datasourceId,
+                operationKey != null ? operationKey : "default", // 兼容旧数据，默认使用 "default"
                 createdAt,
                 updatedAt
         );

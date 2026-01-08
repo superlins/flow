@@ -29,6 +29,7 @@ public final class ApiService implements DomainEntity<ApiService> {
 
     private ServiceContract contract;
     private DatasourceId datasourceId;
+    private String operationKey; // Rule 3: ApiService 必须显式绑定 operationKey
 
     private String name;
     private String description;
@@ -40,15 +41,18 @@ public final class ApiService implements DomainEntity<ApiService> {
 
     private ApiService(ServiceId id,
             ServiceContract contract,
-            DatasourceId datasourceId) {
+            DatasourceId datasourceId,
+            String operationKey) {
 
         Assert.notNull(id, "ServiceId must not be null");
         Assert.notNull(contract, "ServiceContract must not be null");
         Assert.notNull(datasourceId, "DatasourceId must not be null");
+        Assert.hasText(operationKey, "operationKey must not be empty");
 
         this.id = id;
         this.contract = contract;
         this.datasourceId = datasourceId;
+        this.operationKey = operationKey;
         this.status = ServiceStatus.DISABLED;
 
         this.createdAt = Instant.now();
@@ -71,14 +75,16 @@ public final class ApiService implements DomainEntity<ApiService> {
             String name,
             String description,
             DatasourceId datasourceId,
+            String operationKey,
             ServiceContract contract) {
         
         Assert.notNull(id, "ServiceId must not be null");
         Assert.hasText(name, "name must not be empty");
         Assert.notNull(datasourceId, "DatasourceId must not be null");
+        Assert.hasText(operationKey, "operationKey must not be empty");
         Assert.notNull(contract, "ServiceContract must not be null");
 
-        ApiService service = new ApiService(id, contract, datasourceId);
+        ApiService service = new ApiService(id, contract, datasourceId, operationKey);
         service.name = name;
         service.description = description != null ? description : "";
         service.domainEvents.add(new ApiServiceCreated(id, datasourceId));
@@ -96,6 +102,7 @@ public final class ApiService implements DomainEntity<ApiService> {
             ServiceStatus status,
             ServiceContract contract,
             DatasourceId datasourceId,
+            String operationKey,
             Instant createdAt,
             Instant updatedAt) {
         
@@ -104,8 +111,9 @@ public final class ApiService implements DomainEntity<ApiService> {
         Assert.notNull(status, "status must not be null");
         Assert.notNull(contract, "ServiceContract must not be null");
         Assert.notNull(datasourceId, "DatasourceId must not be null");
+        Assert.hasText(operationKey, "operationKey must not be empty");
 
-        ApiService service = new ApiService(id, contract, datasourceId);
+        ApiService service = new ApiService(id, contract, datasourceId, operationKey);
         service.name = name;
         service.description = description != null ? description : "";
         service.status = status;
@@ -209,6 +217,10 @@ public final class ApiService implements DomainEntity<ApiService> {
 
     public DatasourceId datasourceId() {
         return datasourceId;
+    }
+
+    public String operationKey() {
+        return operationKey;
     }
 
     public Instant createdAt() {
