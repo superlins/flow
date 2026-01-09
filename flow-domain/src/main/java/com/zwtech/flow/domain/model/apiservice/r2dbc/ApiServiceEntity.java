@@ -2,15 +2,21 @@ package com.zwtech.flow.domain.model.apiservice.r2dbc;
 
 import com.zwtech.flow.domain.model.apidatasource.DatasourceId;
 import com.zwtech.flow.domain.model.apiservice.ApiService;
+import com.zwtech.flow.domain.model.apiservice.FieldBinding;
 import com.zwtech.flow.domain.model.apiservice.ServiceContract;
 import com.zwtech.flow.domain.model.apiservice.ServiceId;
+import com.zwtech.flow.domain.model.apiservice.ServiceMapping;
 import com.zwtech.flow.domain.model.apiservice.ServiceStatus;
 import lombok.Data;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.relational.core.mapping.Column;
 import org.springframework.data.relational.core.mapping.Table;
+import tools.jackson.core.type.TypeReference;
+import tools.jackson.databind.ObjectMapper;
 
 import java.time.Instant;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * ApiService 的持久化实体
@@ -68,11 +74,12 @@ class ApiServiceEntity {
     @Column("UPDATED_AT_")
     private Instant updatedAt;
 
+    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
+
     /**
      * 将领域模型转换为持久化实体
      * 
-     * 注意：BindingSpec 需要序列化为 JSON
-     * 当前实现使用简单字符串，后续需要集成 JSON 序列化库（如 Jackson）
+     * 注意：ServiceMapping 需要序列化为 JSON
      */
     public static ApiServiceEntity fromApiService(ApiService service) {
         var entity = new ApiServiceEntity();
@@ -97,8 +104,30 @@ class ApiServiceEntity {
             entity.setDatasourceVersion(service.datasourceId().version());
         }
         
-        // Operation Key
-        entity.setOperationKey(service.operationKey());
+        // Mapping（序列化为 JSON）
+        if (service.mapping() != null) {
+            try {
+                Map<String, Object> mappingJson = new HashMap<>();
+                Map<String, String> inputMapping = new HashMap<>();
+                Map<String, String> outputMapping = new HashMap<>();
+                
+                // 序列化 inputMapping: key 是 targetField，value 是 expression
+                for (Map.Entry<String, FieldBinding> entry : service.mapping().inputMapping().entrySet()) {
+                    inputMapping.put(entry.getKey(), entry.getValue().expression());
+                }
+                
+                // 序列化 outputMapping: key 是 targetField，value 是 expression
+                for (Map.Entry<String, FieldBinding> entry : service.mapping().outputMapping().entrySet()) {
+                    outputMapping.put(entry.getKey(), entry.getValue().expression());
+                }
+                
+                mappingJson.put("input", inputMapping);
+                mappingJson.put("output", outputMapping);
+                entity.setBindingSpec(OBJECT_MAPPER.writeValueAsString(mappingJson));
+            } catch (Exception e) {
+                throw new RuntimeException("Failed to serialize ServiceMapping", e);
+            }
+        }
         
         // 时间戳
         entity.setCreatedAt(service.createdAt());
@@ -124,6 +153,49 @@ class ApiServiceEntity {
         // Datasource 引用
         var datasourceId = new DatasourceId(datasourceKey, datasourceVersion);
         
+        // Mapping（反序列化）
+        ServiceMapping mapping = ServiceMapping.empty();
+        if (bindingSpec != null && !bindingSpec.isEmpty()) {
+            try {
+                Map<String, Object> mappingJson = OBJECT_MAPPER.readValue(
+                        bindingSpec, 
+                        new TypeReference<Map<String, Object>>() {});
+                
+                Map<String, FieldBinding> inputMapping = new HashMap<>();
+                Map<String, FieldBinding> outputMapping = new HashMap<>();
+                
+                // 反序列化 inputMapping: key 是 targetField，value 是 expression 字符串
+                if (mappingJson.containsKey("input")) {
+                    @SuppressWarnings("unchecked")
+                    Map<String, String> input = 
+                            (Map<String, String>) mappingJson.get("input");
+                    for (Map.Entry<String, String> entry : input.entrySet()) {
+                        String targetField = entry.getKey();
+                        String expression = entry.getValue();
+                        FieldBinding fieldBinding = new FieldBinding(targetField, expression);
+                        inputMapping.put(targetField, fieldBinding);
+                    }
+                }
+                
+                // 反序列化 outputMapping: key 是 targetField，value 是 expression 字符串
+                if (mappingJson.containsKey("output")) {
+                    @SuppressWarnings("unchecked")
+                    Map<String, String> output = 
+                            (Map<String, String>) mappingJson.get("output");
+                    for (Map.Entry<String, String> entry : output.entrySet()) {
+                        String targetField = entry.getKey();
+                        String expression = entry.getValue();
+                        FieldBinding fieldBinding = new FieldBinding(targetField, expression);
+                        outputMapping.put(targetField, fieldBinding);
+                    }
+                }
+                
+                mapping = new ServiceMapping(inputMapping, outputMapping);
+            } catch (Exception e) {
+                throw new RuntimeException("Failed to deserialize ServiceMapping", e);
+            }
+        }
+        
         // 使用静态工厂方法恢复对象
         return ApiService.restore(
                 serviceId,
@@ -132,7 +204,7 @@ class ApiServiceEntity {
                 status,
                 contract,
                 datasourceId,
-                operationKey != null ? operationKey : "default", // 兼容旧数据，默认使用 "default"
+                mapping,
                 createdAt,
                 updatedAt
         );

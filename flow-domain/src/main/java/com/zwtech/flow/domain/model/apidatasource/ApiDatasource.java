@@ -30,7 +30,7 @@ public final class ApiDatasource implements DomainEntity<ApiDatasource> {
     private DatasourceStatus status;
     private DatasourceConnection connection;
     private DatasourceContract contract;
-    private DatasourceOperation operation;
+    private DatasourceOperation operation; // 一个 Datasource 对应一个 Operation
 
     private List<Extension> extensions;
 
@@ -59,6 +59,7 @@ public final class ApiDatasource implements DomainEntity<ApiDatasource> {
             String description,
             DatasourceType type,
             DatasourceStatus status,
+            DatasourceContract contract,
             DatasourceOperation operation,
             DatasourceConnection connection,
             List<Extension> extensions,
@@ -69,12 +70,16 @@ public final class ApiDatasource implements DomainEntity<ApiDatasource> {
         Assert.hasText(name, "name must not be empty");
         Assert.notNull(type, "type must not be null");
         Assert.notNull(status, "status must not be null");
+        Assert.notNull(contract, "contract must not be null");
+        Assert.notNull(operation, "operation must not be null");
+        Assert.notNull(connection, "connection must not be null");
         
         ApiDatasource ds = new ApiDatasource(id);
         ds.name = name;
         ds.description = description != null ? description : "";
         ds.type = type;
         ds.status = status;
+        ds.contract = contract;
         ds.operation = operation;
         ds.connection = connection;
         ds.createdAt = createdAt != null ? createdAt : Instant.now();
@@ -105,20 +110,24 @@ public final class ApiDatasource implements DomainEntity<ApiDatasource> {
      * @param type 数据源类型
      * @param name 名称
      * @param description 描述
+     * @param contract 契约
      * @param operation 操作
      * @param connection 连接规范
+     * @param extensions 扩展列表
      * @throws IllegalStateException 如果已经配置过或已启用
      */
     public void configure(
             DatasourceType type,
             String name,
             String description,
+            DatasourceContract contract,
             DatasourceOperation operation,
             DatasourceConnection connection,
             List<Extension> extensions) {
         
         Assert.notNull(type, "type must not be null");
         Assert.hasText(name, "name must not be empty");
+        Assert.notNull(contract, "contract must not be null");
         Assert.notNull(operation, "operation must not be null");
         Assert.notNull(connection, "connection must not be null");
         Assert.notNull(extensions, "extensions must not be null");
@@ -130,6 +139,7 @@ public final class ApiDatasource implements DomainEntity<ApiDatasource> {
         this.type = type;
         this.name = name;
         this.description = description != null ? description : "";
+        this.contract = contract;
         this.operation = operation;
         this.connection = connection;
         this.extensions = new ArrayList<>(extensions);
@@ -169,19 +179,22 @@ public final class ApiDatasource implements DomainEntity<ApiDatasource> {
     }
 
     /**
-     * 更新核心字段（operations、connection）
+     * 更新核心字段（contract、operation、connection）
      * 必须确保未被引用（DS-1 规则）
      * 
      * @param isReferenced 是否被引用的检查结果（由应用服务层提供）
+     * @param contract 新契约
      * @param operation 新操作
      * @param connection 新连接规范
      * @throws IllegalStateException 如果被引用或已启用
      */
     public void updateCoreFields(
             boolean isReferenced,
+            DatasourceContract contract,
             DatasourceOperation operation,
             DatasourceConnection connection) {
         
+        Assert.notNull(contract, "contract must not be null");
         Assert.notNull(operation, "operation must not be null");
         Assert.notNull(connection, "connection must not be null");
         
@@ -193,6 +206,7 @@ public final class ApiDatasource implements DomainEntity<ApiDatasource> {
             throw new DatasourceNotConfiguredException(id);
         }
         
+        this.contract = contract;
         this.operation = operation;
         this.connection = connection;
         
@@ -236,7 +250,7 @@ public final class ApiDatasource implements DomainEntity<ApiDatasource> {
     }
 
     public boolean isConfigured() {
-        return operation != null && connection != null;
+        return contract != null && operation != null && connection != null;
     }
 
     public DatasourceId id() {
@@ -257,6 +271,10 @@ public final class ApiDatasource implements DomainEntity<ApiDatasource> {
 
     public DatasourceStatus status() {
         return status;
+    }
+
+    public DatasourceContract contract() {
+        return contract;
     }
 
     public DatasourceOperation operation() {

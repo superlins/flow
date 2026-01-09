@@ -16,8 +16,7 @@ public interface ConnectorAdapter {
      * 
      * @param exchange ExecutionExchange
      * @param datasource ApiDatasource
-     * @param operationKey Operation 的 key（Rule 3：ApiService 必须显式绑定 operationKey）
      * @return 执行结果
      */
-    Mono<ExecutionExchange> execute(ExecutionExchange exchange, ApiDatasource datasource, String operationKey);
+    Mono<ExecutionExchange> execute(ExecutionExchange exchange, ApiDatasource datasource);
 }

@@ -29,7 +29,7 @@ public final class ApiService implements DomainEntity<ApiService> {
 
     private ServiceContract contract;
     private DatasourceId datasourceId;
-    private String operationKey; // Rule 3: ApiService 必须显式绑定 operationKey
+    private ServiceMapping mapping; // 输入输出映射规则
 
     private String name;
     private String description;
@@ -42,17 +42,17 @@ public final class ApiService implements DomainEntity<ApiService> {
     private ApiService(ServiceId id,
             ServiceContract contract,
             DatasourceId datasourceId,
-            String operationKey) {
+            ServiceMapping mapping) {
 
         Assert.notNull(id, "ServiceId must not be null");
         Assert.notNull(contract, "ServiceContract must not be null");
         Assert.notNull(datasourceId, "DatasourceId must not be null");
-        Assert.hasText(operationKey, "operationKey must not be empty");
+        Assert.notNull(mapping, "mapping must not be null");
 
         this.id = id;
         this.contract = contract;
         this.datasourceId = datasourceId;
-        this.operationKey = operationKey;
+        this.mapping = mapping;
         this.status = ServiceStatus.DISABLED;
 
         this.createdAt = Instant.now();
@@ -67,7 +67,7 @@ public final class ApiService implements DomainEntity<ApiService> {
      * @param description 服务描述
      * @param datasourceId 引用的 Datasource 标识
      * @param contract 服务契约
-     * @param bindingSpec 绑定规则
+     * @param mapping 输入输出映射规则
      * @return 新创建的 ApiService（状态为 DISABLED）
      */
     public static ApiService create(
@@ -75,16 +75,16 @@ public final class ApiService implements DomainEntity<ApiService> {
             String name,
             String description,
             DatasourceId datasourceId,
-            String operationKey,
-            ServiceContract contract) {
+            ServiceContract contract,
+            ServiceMapping mapping) {
         
         Assert.notNull(id, "ServiceId must not be null");
         Assert.hasText(name, "name must not be empty");
         Assert.notNull(datasourceId, "DatasourceId must not be null");
-        Assert.hasText(operationKey, "operationKey must not be empty");
         Assert.notNull(contract, "ServiceContract must not be null");
+        Assert.notNull(mapping, "mapping must not be null");
 
-        ApiService service = new ApiService(id, contract, datasourceId, operationKey);
+        ApiService service = new ApiService(id, contract, datasourceId, mapping);
         service.name = name;
         service.description = description != null ? description : "";
         service.domainEvents.add(new ApiServiceCreated(id, datasourceId));
@@ -102,7 +102,7 @@ public final class ApiService implements DomainEntity<ApiService> {
             ServiceStatus status,
             ServiceContract contract,
             DatasourceId datasourceId,
-            String operationKey,
+            ServiceMapping mapping,
             Instant createdAt,
             Instant updatedAt) {
         
@@ -111,9 +111,9 @@ public final class ApiService implements DomainEntity<ApiService> {
         Assert.notNull(status, "status must not be null");
         Assert.notNull(contract, "ServiceContract must not be null");
         Assert.notNull(datasourceId, "DatasourceId must not be null");
-        Assert.hasText(operationKey, "operationKey must not be empty");
+        Assert.notNull(mapping, "mapping must not be null");
 
-        ApiService service = new ApiService(id, contract, datasourceId, operationKey);
+        ApiService service = new ApiService(id, contract, datasourceId, mapping);
         service.name = name;
         service.description = description != null ? description : "";
         service.status = status;
@@ -164,13 +164,24 @@ public final class ApiService implements DomainEntity<ApiService> {
     }
 
     /**
-     * 更新服务契约和绑定规则
+     * 更新服务契约
      * 
      * @param newContract 新契约
      */
     public void updateContract(ServiceContract newContract) {
         Assert.notNull(newContract, "newContract must not be null");
         this.contract = newContract;
+        touch();
+    }
+
+    /**
+     * 更新映射规则
+     * 
+     * @param newMapping 新映射规则
+     */
+    public void updateMapping(ServiceMapping newMapping) {
+        Assert.notNull(newMapping, "newMapping must not be null");
+        this.mapping = newMapping;
         touch();
     }
 
@@ -219,8 +230,8 @@ public final class ApiService implements DomainEntity<ApiService> {
         return datasourceId;
     }
 
-    public String operationKey() {
-        return operationKey;
+    public ServiceMapping mapping() {
+        return mapping;
     }
 
     public Instant createdAt() {

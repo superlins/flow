@@ -1,7 +1,6 @@
 # ApiDatasource 领域模型设计意图（Design Intent）
 
-本文档系统性地阐述 ApiDatasource 领域模型的全部设计意图，可作为架构设计文档、ADR（Architecture Decision Record）或模块
-README 使用。
+本文档系统性地阐述 ApiDatasource 领域模型的全部设计意图，可作为架构设计文档、ADR（Architecture Decision Record）或模块 README 使用。
 
 ---
 
@@ -168,32 +167,6 @@ Datasource 负责给出"最低要求"，ApiService 可以：
 
 **因为这些决定的是"行为"，不是"通道"**
 
-### 5.3 基于表达式的的占位变量声明，从统一的变量上下文 VariableContext 获取指定变量
-
-```json
-{
-  "operation": {
-    "url": "https://api.example.com/v2/user/{{ $request.userId }}/orders",
-    "method": "POST",
-    "headers": {
-      "Content-Type": "application/json"
-    },
-    "queryParams": {
-      "userId": "{{ $request.userId }}"
-    },
-    "requestBody": {
-      "user": {
-        "id": "{{ $request.userId | INTEGER }}"
-      }
-    },
-    "responseBody": {
-      "status": "{{ $response.status }}",
-      "data": "{{ $response.body.result }}"
-    }
-  }
-}
-```
-
 ---
 
 ## 6. ConnectionSpec
@@ -203,6 +176,7 @@ Datasource 负责给出"最低要求"，ApiService 可以：
 **ConnectionSpec 只描述：**
 
 👉 **"如何连到目标系统"**
+👉 **"超时/重试/限流"**（放在这里是否合适？）
 
 **它不关心：**
 
@@ -218,7 +192,6 @@ Datasource 负责给出"最低要求"，ApiService 可以：
 
 - 不可复用
 - 职责混乱
-- 后续无法支持多个 Operation 共用一个连接
 
 ---
 
@@ -355,32 +328,6 @@ Datasource 负责给出"最低要求"，ApiService 可以：
 
 ---
 
-Rule 1：Operation 是 Datasource 的组成部分，不是独立聚合
-
-原因：
-• 不能单独版本化
-• 不能单独引用
-• 生命周期依附 Datasource
-
-⸻
-
-Rule 2：被引用的 Datasource，Operation 集合不可变
-
-包括：
-• 新增 Operation
-• 删除 Operation
-• 修改 OperationSpec
-
-👉 统一触发新版本
-
-⸻
-
-Rule 3：ApiService 必须显式绑定 operationKey
-
-不允许：
-• 隐式 default（除非兼容旧数据）
-• 执行期推断
-
 ## 10. Repository 设计意图
 
 ### 10.1 Repository 的唯一职责
@@ -479,13 +426,41 @@ public interface ApiDatasourceRepository {
 
 ---
 
+## 14. 统一的上下文变量 Revised Variable Context
+
+**Phase 1: ApiService 入口**
+
+    #serviceInput: 客户发起请求提取 ServerHttpRequest 请求体（需过 ApiService Input Schema 校验）
+
+**Phase 2: Mapping (Input)**
+
+    上下文可见：#serviceInput, #env
+    
+    产出：#dsInput
+
+**Phase 3: Datasource 执行**
+
+    输入：#dsInput
+
+    适配不同 connector 的请求 RequestSpec 和响应 ResponseSpec 对象：#req, #resp
+
+    输出：#dsOutput
+
+**Phase 4: Mapping (Output)**
+
+    上下文可见：#serviceInput, #dsInput, #dsOutput, #req, #resp (有时候输出需要回显输入参数)
+    
+    产出：#serviceOutput
+
+
 ## 15. 声明式定义
 
 ### 15.1 ApiService
 
-一个逻辑服务单元，引用且只引用一个 ApiDatasource，属于 ApiDatasource 的投影，即 ApiService#contract 映射
-ApiDatasource#contract。
-ApiService 处理用户请求并做出响应
+一个开放给非技术人员配置使用的逻辑服务单元，它引用唯一一个 ApiDatasource。
+
+它是浅浅的一层 ApiDatasource 包装，本质属于 ApiDatasource#contract 投影（强制投影必须项），
+允许用户增加映射规则（如何映射 ApiService 输入到 ApiDatasource 输入，以及如何映射 ApiDatasource 输出到 ApiService 输出），也允许用户定义额外的字段约束规则。
 
 ```json
 {
@@ -493,52 +468,53 @@ ApiService 处理用户请求并做出响应
   "name": "A online api-service",
   "datasource": "ds-http-post-create-order",
   "enabled": true,
+  // 1. ApiService 自身的契约 (面向客户端)
   "contract": {
     "input": {
       "type": "object",
       "properties": {
-        "name": {
-          "type": "string",
-          "description": "user name"
-        },
-        "phone": {
-          "type": "string",
-          "description": "user phone"
-        },
-        "idcardno": {
-          "type": "string",
-          "description": "user idcardno"
-        },
-        "alg": {
-          "type": "string",
-          "description": "params algorithm",
-          "default": "md5",
-          "enum": [
-            "md5",
-            "sha256",
-            "sm3"
-          ],
-          "x-internal-map": "encryptType"
-        }
+        "clientUserName": { "type": "string" },
+        "clientUserId": { "type": "string" },
+        "channel": { "type": "string", "default": "H5" }
       },
-      "required": [
-        "name",
-        "phone",
-        "idcardno"
-      ]
+      "required": ["clientUserId"]
     },
     "output": {
       "type": "object",
       "properties": {
-        "score1": {
-          "type": "integer",
-          "description": "user score1"
-        },
-        "score2": {
-          "type": "string",
-          "description": "user score2"
-        }
+        "bizOrderId": { "type": "string" },
+        "processTime": { "type": "string" }
       }
+    }
+  },
+  // 2. 映射配置
+  "mapping": {
+    // 2.1 输入映射：构造 Datasource 需要的 Input
+    // 目标：生成的数据必须符合 Datasource.contract.input 的 Schema
+    "input": {
+      // 方式 A：简单字段一一映射 (语法糖，底层可转为 SpEL)
+      "userId": "{{ #serviceInput.clientUserId }}",
+
+      // 方式 B：复杂计算/常量/默认值 (使用 SpEL)
+      // 假设 Datasource 需要 'name'，我们用 Service 的 'clientUserName' 或者是 'Guest'
+      "name": "{{ #serviceInput.clientUserName != null ? #serviceInput.clientUserName : 'Guest' }}",
+
+      // 假设 Datasource 需要 'traceId'，我们生成一个或从 Header 取
+      "traceId": "{{ T(java.util.UUID).randomUUID().toString() }}",
+
+      // 假设 Datasource 需要 'source'，我们写死常量，不提供表达式模版 '{{ expr }}'
+      "source": "API_GATEWAY"
+    },
+    // 2.2 输出映射：构造 ApiService 承诺的 Output
+    // 上下文：#dsOutput (Datasource 的 output 结果)
+    "output": {
+      "bizOrderId": "{{ #dsOutput.orderId }}",
+
+      // 可以在这里做简单的格式化
+      "processTime": "{{ new java.text.SimpleDateFormat('yyyy-MM-dd').format(new java.util.Date()) }}",
+
+      // 组合字段
+      "fullDescription": "Order {{ #dsOutput.orderId }} is {{ #dsOutput.status }}"
     }
   },
   "description": "",
@@ -553,8 +529,6 @@ ApiService 处理用户请求并做出响应
 常见的 HTTP、RPC、JDBC、NoSQL 等 “契约模型” 标准化抽象模型，封装底层数据源的复杂性，“统一抽象 + 类型特化”；连接池、超时、重试、认证、限流；可测试、可验证
 
 - HTTP
-
-> 示例1
 
 ```json
 {
@@ -616,20 +590,20 @@ ApiService 处理用户请求并做出响应
         "X-User-Agent": "airflow"
       },
       "queryParams": {
-        "userId": "{{ #request.userId }}"
+        "userId": "{{ #dsInput.userId }}"
       },
       "contentType": "application/json",
       "body": {
         "user": {
-          "id": "{{ #request.userId }}"
+          "id": "{{ #dsInput.userId }}"
         }
       }
     },
     "response": {
       "contentType": "application/json",
       "body": {
-        "status": "{{ #response.status }}",
-        "data": "{{ $#esponse.body.result }}"
+        "status": "{{ #resp.status }}",
+        "data": "{{ $#resp.body.result }}"
       }
     }
   },
@@ -648,8 +622,6 @@ ApiService 处理用户请求并做出响应
 ```
 
 - R2DBC
-
-遵循 SQL + JsonSchema 参数绑定风格
 
 ```json
 {
@@ -708,8 +680,8 @@ ApiService 处理用户请求并做出响应
   "operation": {
     "sql": "SELECT order_id AS orderId, product_name AS product, amount, created_at AS createdAt FROM orders WHERE user_id = :userId ORDER BY created_at DESC LIMIT :limit",
     "params": {
-      "userId": "{{ #request.userId }}",
-      "limit": "{{ #request.limit | INTEGER }}"
+      "userId": "{{ #dsInput.userId }}",
+      "limit": "{{ #dsInput.limit }}"
     }
   }
 }

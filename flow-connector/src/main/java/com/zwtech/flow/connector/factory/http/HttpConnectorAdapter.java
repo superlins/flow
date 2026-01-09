@@ -53,17 +53,17 @@ public class HttpConnectorAdapter implements ConnectorAdapter {
     }
 
     @Override
-    public Mono<ExecutionExchange> execute(ExecutionExchange exchange, ApiDatasource datasource, String operationKey) {
+    public Mono<ExecutionExchange> execute(ExecutionExchange exchange, ApiDatasource datasource) {
 
-        // 1. 获取指定的 Operation
-        var operation = datasource.getOperation(operationKey);
-        var contract = operation.getContract();
-        var behavior = (HttpDatasourceOperation) operation.getBehavior();
+        // 1. 获取 Operation 和 Contract
+        var operation = datasource.operation();
+        var contract = datasource.contract();
+        var behavior = (HttpDatasourceOperation) operation;
 
         // 2. 从 ExecutionExchange 取出 JsonNode
         JsonNode inputNode = exchange.getRequest();
 
-        // 3. 按 Operation Contract 的 inputSchema 做运行期 JSON Schema 校验
+        // 3. 按 Datasource Contract 的 inputSchema 做运行期 JSON Schema 校验
         schemaValidationService.validate(contract.inputSchema(), inputNode);
 
         // 4. 获取 Connection 配置
@@ -81,7 +81,7 @@ public class HttpConnectorAdapter implements ConnectorAdapter {
 
         // 8. 构建 Filter 列表（全局 + 插件）
         var filters = new LinkedList<ConnectorFilter<HttpRequestSpec, HttpResponseSpec>>();
-        operation.getExtensions().forEach(extension -> {
+        datasource.extensions().forEach(extension -> {
             var extensions = pluginManager.getExtensions(ConnectorFilter.class, extension.id());
             for (var connectorFilter : extensions) {
                 //noinspection unchecked
@@ -122,7 +122,7 @@ public class HttpConnectorAdapter implements ConnectorAdapter {
                 // outputNode = respSpec.getBody() != null ? respSpec.getBody() : OBJECT_MAPPER.createObjectNode();
             }
 
-            // 13. 按 Operation Contract 的 outputSchema 做运行期 JSON Schema 校验
+            // 13. 按 Datasource Contract 的 outputSchema 做运行期 JSON Schema 校验
             schemaValidationService.validate(contract.outputSchema(), outputNode);
 
             // 14. 写回 ExecutionExchange.response（不可变）
