@@ -3,7 +3,7 @@ package com.zwtech.flow.connector.factory.r2dbc;
 import com.zwtech.flow.connector.ResponseSpec;
 import lombok.Builder;
 import lombok.Getter;
-import tools.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.JsonNode;
 
 import java.util.HashMap;
 import java.util.List;

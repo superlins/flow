@@ -11,8 +11,8 @@ import lombok.Data;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.relational.core.mapping.Column;
 import org.springframework.data.relational.core.mapping.Table;
-import tools.jackson.core.type.TypeReference;
-import tools.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 import java.time.Instant;
 import java.util.HashMap;
@@ -190,7 +190,8 @@ class ApiServiceEntity {
                     }
                 }
                 
-                mapping = new ServiceMapping(inputMapping, outputMapping);
+                // Use datasource mode factory method
+                mapping = ServiceMapping.datasource(datasourceId, datasourceVersion, inputMapping, outputMapping);
             } catch (Exception e) {
                 throw new RuntimeException("Failed to deserialize ServiceMapping", e);
             }

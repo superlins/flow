@@ -1,7 +1,7 @@
 package com.zwtech.flow.connector;
 
 import com.zwtech.flow.core.ExecutionExchange;
-import tools.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.JsonNode;
 
 /**
  * 数据绑定与转换工具
@@ -16,7 +16,7 @@ import tools.jackson.databind.JsonNode;
  */
 public abstract class DataBinder {
 
-    private static final tools.jackson.databind.ObjectMapper OBJECT_MAPPER = new tools.jackson.databind.ObjectMapper();
+    private static final com.fasterxml.jackson.databind.ObjectMapper OBJECT_MAPPER = new com.fasterxml.jackson.databind.ObjectMapper();
 
     /**
      * 根据给定的 schema 与 data，将数据绑定为目标类型

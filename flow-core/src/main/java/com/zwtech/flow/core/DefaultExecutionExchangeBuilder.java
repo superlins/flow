@@ -2,7 +2,7 @@ package com.zwtech.flow.core;
 
 import org.jspecify.annotations.Nullable;
 import org.springframework.util.Assert;
-import tools.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.JsonNode;
 
 /**
  * @author renc

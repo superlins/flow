@@ -489,20 +489,20 @@ public interface ApiDatasourceRepository {
   },
   // 2. 映射配置
   "mapping": {
-    // 2.1 输入映射：构造 Datasource 需要的 Input
-    // 目标：生成的数据必须符合 Datasource.contract.input 的 Schema
+    // 2.1 输入映射：构造 Datasource|Workflow 需要的 Input
+    // 目标：生成的数据必须符合 Datasource|Workflow 输入约束的 Schema
     "input": {
       // 方式 A：简单字段一一映射 (语法糖，底层可转为 SpEL)
       "userId": "{{ #serviceInput.clientUserId }}",
 
       // 方式 B：复杂计算/常量/默认值 (使用 SpEL)
-      // 假设 Datasource 需要 'name'，我们用 Service 的 'clientUserName' 或者是 'Guest'
+      // 假设 Datasource|Workflow 需要 'name'，我们用 Service 的 'clientUserName' 或者是 'Guest'
       "name": "{{ #serviceInput.clientUserName != null ? #serviceInput.clientUserName : 'Guest' }}",
 
-      // 假设 Datasource 需要 'traceId'，我们生成一个或从 Header 取
+      // 假设 Datasource|Workflow 需要 'traceId'，我们生成一个或从 Header 取
       "traceId": "{{ T(java.util.UUID).randomUUID().toString() }}",
 
-      // 假设 Datasource 需要 'source'，我们写死常量，不提供表达式模版 '{{ expr }}'
+      // 假设 Datasource|Workflow 需要 'source'，我们写死常量，不提供表达式模版 '{{ expr }}'
       "source": "API_GATEWAY"
     },
     // 2.2 输出映射：构造 ApiService 承诺的 Output

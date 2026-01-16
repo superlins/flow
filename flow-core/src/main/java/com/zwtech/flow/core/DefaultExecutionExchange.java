@@ -3,7 +3,7 @@ package com.zwtech.flow.core;
 import org.jspecify.annotations.Nullable;
 import org.springframework.context.ApplicationContext;
 import org.springframework.util.Assert;
-import tools.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.JsonNode;
 
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;

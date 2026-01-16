@@ -7,7 +7,7 @@ import com.zwtech.flow.core.parser.TemplateExpressionParser;
 import com.zwtech.flow.domain.model.apidatasource.operation.HttpDatasourceOperation;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
-import tools.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 import java.util.HashMap;
 import java.util.Map;

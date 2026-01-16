@@ -16,8 +16,8 @@ import com.zwtech.flow.domain.model.apidatasource.operation.HttpDatasourceOperat
 import com.zwtech.flow.domain.model.apidatasource.connection.HttpDatasourceConnection;
 import com.zwtech.flow.domain.service.SchemaValidationService;
 import reactor.core.publisher.Mono;
-import tools.jackson.databind.JsonNode;
-import tools.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 import java.util.LinkedList;
 

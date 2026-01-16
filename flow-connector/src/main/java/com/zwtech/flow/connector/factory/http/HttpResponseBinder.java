@@ -2,7 +2,7 @@ package com.zwtech.flow.connector.factory.http;
 
 import com.zwtech.flow.domain.model.apidatasource.ApiDatasource;
 import com.zwtech.flow.domain.model.apidatasource.operation.HttpDatasourceOperation;
-import tools.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.JsonNode;
 
 /**
  * 将下游 HttpResponseSpec + HttpOperationSpec 中的响应映射配置
