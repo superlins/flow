@@ -21,6 +21,16 @@
     <dependencies>
         <dependency>
             <groupId>com.zwtech</groupId>
+            <artifactId>flow-core</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.zwtech</groupId>
+            <artifactId>flow-connector</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.zwtech</groupId>
             <artifactId>flow-domain</artifactId>
             <version>${project.version}</version>
         </dependency>
@@ -31,6 +41,10 @@
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-actuator</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-api</artifactId>
         </dependency>
     </dependencies>
 
