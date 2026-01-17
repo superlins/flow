@@ -51,6 +51,45 @@ The backend provides REST API for workflow management at `/api/workflows`:
 - `POST /api/workflows/{key}/{version}/archive` - Archive workflow
 - `POST /api/workflows/{key}/{version}/execute` - Execute workflow with JSON input
 - `GET /api/workflows/executions/{executionId}` - Get execution details
+- `POST /api/workflows/executions/{executionId}/cancel` - Cancel running execution
+
+### Workflow Persistence
+
+The workflow system now supports full R2DBC persistence:
+
+**WorkflowEntity** (`flow-domain/src/main/java/com/zwtech/flow/domain/model/workflow/r2dbc/WorkflowEntity.java`):
+- Stores workflow metadata (key, version, name, description, status)
+- Serializes nodes and connections as JSONB
+- Supports CRUD operations through `WorkflowRepository`
+
+**WorkflowExecutionEntity** (`flow-domain/src/main/java/com/zwtech/flow/domain/model/workflow/r2dbc/WorkflowExecutionEntity.java`):
+- Tracks execution state (PENDING, RUNNING, SUCCESS, FAILED, TIMEOUT, CANCELED)
+- Stores input/output as JSONB
+- Tracks node-level execution status
+- Records timing information (startedAt, finishedAt, durationMs)
+
+**Controllers**:
+- `WorkflowController` - In-memory storage (demo/legacy)
+- `PersistentWorkflowController` - Full R2DBC persistence with domain model integration
+
+### Workflow Execution Features
+
+**DatasourceExecutionService** (`flow-app/src/main/java/com/zwtech/flow/app/service/DefaultDatasourceExecutionService.java`):
+- Coordinates Repository and ConnectorAdapter
+- Executes datasource operations through HTTP connector
+- Supports timeout control
+
+**WorkflowExecutionService** (`flow-app/src/main/java/com/zwtech/flow/app/service/DefaultWorkflowExecutionService.java`):
+- DAG execution with field mapping
+- Support for datasource and simple node types
+- Execution cancellation with state persistence
+- Timeout handling (default 30 minutes)
+
+**Field Mapping**:
+- Supports dot-notation paths (e.g., `"data.user.id"`)
+- Smart field extraction from source node outputs
+- Flexible field assignment to target node inputs
+- JSON node merging for complex data structures
 
 ### CORS Configuration
 
@@ -131,10 +170,8 @@ The Workflow system follows DDD patterns with:
 - **WorkflowAggregate**: Identified by `(key, version)` composite key
 - **WorkflowStatus**: DRAFT, ENABLED, DISABLED, ARCHIVED
 - **Node/Connection**: Graph-based workflow structure
-- **WorkflowExecution**: Tracks execution with status (SUCCESS, FAILED, RUNNING)
+- **WorkflowExecution**: Tracks execution with status (SUCCESS, FAILED, RUNNING, TIMEOUT, CANCELED)
 - **Domain Events**: WorkflowCreatedEvent, WorkflowStatusChangedEvent, WorkflowExecutionCompletedEvent, etc.
-
-Current implementation uses in-memory storage in WorkflowController for demonstration. Future work should integrate with repositories.
 
 ### Frontend Architecture
 
@@ -164,6 +201,39 @@ The application uses PostgreSQL with R2DBC:
 - Uses NetworkNT JSON Schema Validator
 - Schemas are part of domain logic, not just validation
 - Strict validation required for execution
+
+### Workflow Persistence Layer Architecture
+```
+flow-domain (Domain Layer)
+├── WorkflowRepository (interface)
+├── WorkflowExecutionStore (interface)
+└── r2dbc/
+    ├── WorkflowEntity (R2DBC mapping)
+    ├── WorkflowEntityRepository (Spring Data R2DBC)
+    ├── R2dbcWorkflowRepository (repository implementation)
+    ├── WorkflowExecutionEntity (R2DBC mapping)
+    ├── WorkflowExecutionEntityRepository (Spring Data R2DBC)
+    └── R2dbcWorkflowExecutionStore (store implementation)
+
+flow-app (Application Layer)
+├── DefaultDatasourceExecutionService (coordinates datasource execution)
+└── DefaultWorkflowExecutionService (orchestrates workflow execution)
+```
+
+### Service Layer Separation
+- **flow-domain**: Contains service interfaces (`DatasourceExecutionService`, `WorkflowExecutionService`)
+- **flow-app**: Contains service implementations (`DefaultDatasourceExecutionService`, `DefaultWorkflowExecutionService`)
+- This avoids circular dependencies between flow-domain and flow-connector
+
+### Workflow Execution Flow
+1. Controller receives request
+2. Validates workflow is ENABLED
+3. Creates WorkflowExecutionId (UUID)
+4. Calls WorkflowExecutionService.execute()
+5. Service orchestrates DAG execution with field mapping
+6. For DATASOURCE nodes: calls DatasourceExecutionService → executes via ConnectorAdapter
+7. Saves execution state through WorkflowExecutionStore
+8. Returns execution result with input/output/timing
 
 ### Reactive Programming
 - Built on Spring WebFlux
