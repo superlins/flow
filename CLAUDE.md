@@ -10,18 +10,19 @@ Flow is a Spring Boot 4.0.1 application built with Java 25 that provides a decla
 
 - **flow-core**: Core plugin system using PF4J and JSON schema validation
 - **flow-api**: API module (currently empty, for future API definitions)
-- **flow-domain**: Domain models and business logic for ApiDatasource and ApiService
-- **flow-app**: Application layer (currently empty, for future application services)
+- **flow-domain**: Domain models and business logic for ApiDatasource, ApiService, and Workflow
+- **flow-app**: Application layer with REST APIs and Spring Boot configuration
 - **flow-connector**: Connector framework for various data sources (HTTP, R2DBC, etc.)
+- **flow-frontend**: React + TypeScript frontend with Tailwind CSS + DaisyUI
 
 ## Common Commands
 
 ### Build and Run
 ```bash
-# Build the entire project
+# Build the entire project (backend)
 mvn clean install
 
-# Run the application
+# Run the backend application
 mvn spring-boot:run
 
 # Run with specific profile
@@ -29,7 +30,35 @@ mvn spring-boot:run -Dspring-boot.run.profiles=dev
 
 # Start PostgreSQL (required)
 docker-compose up -d
+
+# Frontend commands
+cd flow-frontend
+npm install              # Install dependencies
+npm run dev             # Start dev server (http://localhost:5173)
+npm run build           # Build for production
+npm run preview         # Preview production build
 ```
+
+### Workflow System API
+
+The backend provides REST API for workflow management at `/api/workflows`:
+
+- `POST /api/workflows` - Create new workflow
+- `GET /api/workflows` - List workflows (supports `?key=` and `?status=` filters)
+- `GET /api/workflows/{key}/{version}` - Get workflow details
+- `POST /api/workflows/{key}/{version}/enable` - Enable workflow
+- `POST /api/workflows/{key}/{version}/disable` - Disable workflow
+- `POST /api/workflows/{key}/{version}/archive` - Archive workflow
+- `POST /api/workflows/{key}/{version}/execute` - Execute workflow with JSON input
+- `GET /api/workflows/executions/{executionId}` - Get execution details
+
+### CORS Configuration
+
+The backend implements CORS configuration to allow frontend access from:
+- `http://localhost:5173` (default Vite dev server)
+- `http://localhost:5174`
+
+Configure in `flow-app/src/main/java/com/zwtech/flow/app/config/CorsConfig.java`
 
 ### Testing
 ```bash
@@ -59,10 +88,11 @@ mvn dependency:tree
 
 ### Domain Model Design
 
-The system is built around two core aggregates:
+The system is built around three core aggregates:
 
 1. **ApiDatasource**: Represents a configurable data source with contracts, operations, and connections
 2. **ApiService**: A user-facing service that wraps an ApiDatasource with mapping rules
+3. **Workflow**: A declarative workflow system with nodes, connections, and execution tracking
 
 Key design principles from the domain documentation:
 - ApiDatasource has version support (`(key, version)` identifier)
@@ -94,6 +124,31 @@ The system uses a unified context variable approach:
 - `#dsOutput`: Raw datasource output
 - `#serviceOutput`: Final mapped response
 - SpEL expressions for field mappings
+
+### Workflow Domain Architecture
+
+The Workflow system follows DDD patterns with:
+- **WorkflowAggregate**: Identified by `(key, version)` composite key
+- **WorkflowStatus**: DRAFT, ENABLED, DISABLED, ARCHIVED
+- **Node/Connection**: Graph-based workflow structure
+- **WorkflowExecution**: Tracks execution with status (SUCCESS, FAILED, RUNNING)
+- **Domain Events**: WorkflowCreatedEvent, WorkflowStatusChangedEvent, WorkflowExecutionCompletedEvent, etc.
+
+Current implementation uses in-memory storage in WorkflowController for demonstration. Future work should integrate with repositories.
+
+### Frontend Architecture
+
+The React frontend follows standard patterns:
+- **React Query** for server state management and caching
+- **Axios** for HTTP client with interceptors
+- **DaisyUI** components for consistent UI
+- **Component structure**:
+  - `App.tsx` - Main layout and query client provider
+  - `WorkflowList.tsx` - Display all workflows
+  - `CreateWorkflowModal.tsx` - Form to create new workflows
+  - `ExecuteWorkflowModal.tsx` - Execute workflow with JSON input
+
+Frontend API base URL configured in `flow-frontend/.env`: `VITE_API_BASE_URL`
 
 ## Database Setup
 
@@ -134,3 +189,21 @@ The application uses PostgreSQL with R2DBC:
 - New connectors should extend `AbstractConnector`
 - Always maintain backward compatibility for datasource versions
 - Use SpEL for field mappings in ApiService configurations
+- React components should use DaisyUI patterns for consistency
+- All API calls should go through React Query for automatic caching and refetching
+- New endpoints should be added to both backend WorkflowController and frontend workflowApi
+
+## Quick Start
+
+To run the complete workflow system:
+
+```bash
+# Terminal 1: Start backend
+mvn spring-boot:run
+
+# Terminal 2: Start frontend
+cd flow-frontend
+npm run dev
+```
+
+Access the frontend at http://localhost:5173 and the backend API at http://localhost:8080
