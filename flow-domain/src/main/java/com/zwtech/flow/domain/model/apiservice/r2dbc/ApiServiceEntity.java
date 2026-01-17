@@ -158,16 +158,22 @@ class ApiServiceEntity {
         if (bindingSpec != null && !bindingSpec.isEmpty()) {
             try {
                 Map<String, Object> mappingJson = OBJECT_MAPPER.readValue(
-                        bindingSpec, 
+                        bindingSpec,
                         new TypeReference<Map<String, Object>>() {});
-                
+
+                // 检测模式：如果有 workflowId 则为 WORKFLOW 模式
+                String workflowIdStr = mappingJson.containsKey("workflowId") ?
+                        (String) mappingJson.get("workflowId") : null;
+                Integer workflowVersion = mappingJson.containsKey("workflowVersion") ?
+                        (Integer) mappingJson.get("workflowVersion") : null;
+
                 Map<String, FieldBinding> inputMapping = new HashMap<>();
                 Map<String, FieldBinding> outputMapping = new HashMap<>();
-                
+
                 // 反序列化 inputMapping: key 是 targetField，value 是 expression 字符串
                 if (mappingJson.containsKey("input")) {
                     @SuppressWarnings("unchecked")
-                    Map<String, String> input = 
+                    Map<String, String> input =
                             (Map<String, String>) mappingJson.get("input");
                     for (Map.Entry<String, String> entry : input.entrySet()) {
                         String targetField = entry.getKey();
@@ -176,11 +182,11 @@ class ApiServiceEntity {
                         inputMapping.put(targetField, fieldBinding);
                     }
                 }
-                
+
                 // 反序列化 outputMapping: key 是 targetField，value 是 expression 字符串
                 if (mappingJson.containsKey("output")) {
                     @SuppressWarnings("unchecked")
-                    Map<String, String> output = 
+                    Map<String, String> output =
                             (Map<String, String>) mappingJson.get("output");
                     for (Map.Entry<String, String> entry : output.entrySet()) {
                         String targetField = entry.getKey();
@@ -189,9 +195,22 @@ class ApiServiceEntity {
                         outputMapping.put(targetField, fieldBinding);
                     }
                 }
-                
-                // Use datasource mode factory method
-                mapping = ServiceMapping.datasource(datasourceId, datasourceVersion, inputMapping, outputMapping);
+
+                // 根据模式创建 ServiceMapping
+                if (workflowIdStr != null && !workflowIdStr.isEmpty()) {
+                    // WORKFLOW 模式
+                    mapping = ServiceMapping.workflow(
+                            workflowIdStr,
+                            workflowVersion != null ? workflowVersion : 1,
+                            inputMapping,
+                            outputMapping
+                    );
+                } else {
+                    // DATASOURCE 模式
+                    var dsId = datasourceKey != null && datasourceVersion != null ?
+                            new DatasourceId(datasourceKey, datasourceVersion) : null;
+                    mapping = ServiceMapping.datasource(dsId, datasourceVersion, inputMapping, outputMapping);
+                }
             } catch (Exception e) {
                 throw new RuntimeException("Failed to deserialize ServiceMapping", e);
             }
@@ -204,7 +223,6 @@ class ApiServiceEntity {
                 description,
                 status,
                 contract,
-                datasourceId,
                 mapping,
                 createdAt,
                 updatedAt
