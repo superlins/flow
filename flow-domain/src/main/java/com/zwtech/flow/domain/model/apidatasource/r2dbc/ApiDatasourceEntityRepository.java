@@ -13,8 +13,11 @@ interface ApiDatasourceEntityRepository extends ReactiveCrudRepository<ApiDataso
 
     Flux<ApiDatasourceEntity> findByKey(String key);
 
-    @Query("SELECT * FROM ApiDatasourceEntity d WHERE d.key = :key ORDER BY d.version DESC LIMIT 1")
+    @Query("SELECT * FROM flw_api_datasource d WHERE d.key_ = :key ORDER BY d.version_ DESC LIMIT 1")
     Mono<ApiDatasourceEntity> findLatestByKey(@Param("key") String key);
 
     Mono<ApiDatasourceEntity> findByKeyAndVersion(String key, int version);
+
+    @Query("SELECT * FROM flw_api_datasource ORDER BY updated_at_ DESC")
+    Flux<ApiDatasourceEntity> findAllOrdered();
 }

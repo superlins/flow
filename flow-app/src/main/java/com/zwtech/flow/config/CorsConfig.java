@@ -1,15 +1,18 @@
-package com.zwtech.flow.app.config;
+package com.zwtech.flow.config;
 
+import com.zwtech.flow.core.plugin.SpringPluginManager;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.reactive.CorsWebFilter;
 import org.springframework.web.cors.reactive.UrlBasedCorsConfigurationSource;
 
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.Arrays;
 
 /**
- * CORS Configuration
+ * Configuration for CORS and Plugins
  *
  * @author renc
  */
@@ -64,5 +67,15 @@ public class CorsConfig {
         source.registerCorsConfiguration("/**", corsConfig);
 
         return new CorsWebFilter(source);
+    }
+
+    /**
+     * SpringPluginManager bean for handling PF4J plugins
+     */
+    @Bean
+    public SpringPluginManager springPluginManager() {
+        // Default plugins directory: ./plugins
+        Path pluginsRoot = Paths.get("plugins");
+        return new SpringPluginManager(pluginsRoot);
     }
 }

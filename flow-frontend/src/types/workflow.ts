@@ -28,6 +28,13 @@ export interface WorkflowExecution {
   durationMs: number;
 }
 
+export interface UpdateWorkflowRequest {
+  name: string;
+  description?: string;
+  inputSchema?: string;
+  outputSchema?: string;
+}
+
 export interface CreateWorkflowRequest {
   key: string;
   name: string;

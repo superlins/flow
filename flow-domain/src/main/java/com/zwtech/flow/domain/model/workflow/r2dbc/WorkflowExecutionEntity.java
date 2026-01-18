@@ -3,7 +3,10 @@ package com.zwtech.flow.domain.model.workflow.r2dbc;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.zwtech.flow.domain.model.workflow.*;
+import com.zwtech.flow.domain.model.workflow.WorkflowExecution;
+import com.zwtech.flow.domain.model.workflow.WorkflowExecutionId;
+import com.zwtech.flow.domain.model.workflow.WorkflowExecutionStatus;
+import com.zwtech.flow.domain.model.workflow.WorkflowId;
 import lombok.Data;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.relational.core.mapping.Column;
@@ -25,44 +28,44 @@ import java.util.Map;
  * @author renc
  */
 @Data
-@Table("FLW_WORKFLOW_EXECUTION")
+@Table("flw_workflow_execution")
 public class WorkflowExecutionEntity {
 
     @Id
-    @Column("ID_")
+    @Column("id_")
     private Long id;
 
-    @Column("EXECUTION_ID_")
+    @Column("execution_id_")
     private String executionId;
 
-    @Column("WORKFLOW_KEY_")
+    @Column("workflow_key_")
     private String workflowKey;
 
-    @Column("WORKFLOW_VERSION_")
+    @Column("workflow_version_")
     private Integer workflowVersion;
 
-    @Column("STATUS_")
+    @Column("status_")
     private String status;
 
-    @Column("INPUT_")
+    @Column("input_")
     private String input;
 
-    @Column("OUTPUT_")
+    @Column("output_")
     private String output;
 
-    @Column("ERROR_MESSAGE_")
+    @Column("error_message_")
     private String errorMessage;
 
-    @Column("NODE_STATUSES_")
+    @Column("node_statuses_")
     private String nodeStatuses;
 
-    @Column("STARTED_AT_")
+    @Column("started_at_")
     private Instant startedAt;
 
-    @Column("FINISHED_AT_")
+    @Column("finished_at_")
     private Instant finishedAt;
 
-    @Column("DURATION_MS_")
+    @Column("duration_ms_")
     private Long durationMs;
 
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();

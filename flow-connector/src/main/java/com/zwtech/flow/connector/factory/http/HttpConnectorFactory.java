@@ -2,7 +2,8 @@ package com.zwtech.flow.connector.factory.http;
 
 import com.zwtech.flow.connector.Connector;
 import com.zwtech.flow.connector.factory.AbstractConnectorFactory;
-import com.zwtech.flow.domain.model.apidatasource.ApiDatasource;
+import com.zwtech.flow.connector.specs.DatasourceSpecs;
+import com.zwtech.flow.connector.specs.HttpDatasourceSpecs;
 import com.zwtech.flow.domain.model.apidatasource.connection.HttpDatasourceConnection;
 import io.netty.channel.ChannelOption;
 import io.netty.handler.ssl.SslContext;
@@ -17,12 +18,16 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
+ * HTTP 连接器工厂
+ * <p>
+ * 根据数据源规格创建 Connector 实例。
+ * Connection 信息用于构建 WebClient 客户端。
+ *
  * @author renc
  */
 public class HttpConnectorFactory extends AbstractConnectorFactory<HttpRequestSpec, HttpResponseSpec> {
 
     private final Map<String, WebClient> clientCache = new ConcurrentHashMap<>();
-
     private final WebClient.Builder webClientBuilder;
 
     public HttpConnectorFactory(WebClient.Builder webClientBuilder) {
@@ -30,29 +35,30 @@ public class HttpConnectorFactory extends AbstractConnectorFactory<HttpRequestSp
     }
 
     @Override
-    public Connector<HttpRequestSpec, HttpResponseSpec> create(ApiDatasource apiDatasource) {
-        var connection = (HttpDatasourceConnection) apiDatasource.connection();
-        // String clientKey = generateKey(apiDatasource);
-        // var webClient = clientCache.computeIfAbsent(clientKey, key -> createWebClient(apiDatasource));
-        var webClient = webClientBuilder.build();
+    public Connector<HttpRequestSpec, HttpResponseSpec> create(DatasourceSpecs specs) {
+        if (!(specs instanceof HttpDatasourceSpecs httpSpecs)) {
+            throw new IllegalArgumentException("Expected HttpDatasourceSpecs, got: " + specs.getClass().getName());
+        }
+
+        HttpDatasourceConnection connection = httpSpecs.getConnection();
+
+        // 根据连接配置构建 WebClient
+        WebClient webClient = createWebClient(connection);
 
         return new HttpConnector(webClient);
     }
 
-    private String generateKey(ApiDatasource apiDatasource) {
-        // var connection = apiDatasource.getConnection();
-        // if (connection != null) {
-        //     return connection.getHost() + ":" + connection.getPort() + "_" +
-        //            apiDatasource.getAuthentication().hashCode();
-        // }
-        return "default";
-    }
+    /**
+     * 根据连接配置创建 WebClient
+     */
+    private WebClient createWebClient(HttpDatasourceConnection connection) {
+        HttpConnectorConfig config = HttpConnectorConfig.from(connection);
 
-    private WebClient createWebClient(HttpConnectorConfig config) {
         var connectionProvider = ConnectionProvider.builder("flowHttpClient")
-                .maxConnections(200).build();
+                .maxConnections(200)
+                .build();
 
-        var httpClient = HttpClient.create(connectionProvider)
+        HttpClient httpClient = HttpClient.create(connectionProvider)
                 .compress(config.isCompressionEnabled())
                 .disableRetry(config.isRetryDisabled())
                 .responseTimeout(config.getResponseTimeout())
@@ -71,7 +77,7 @@ public class HttpConnectorFactory extends AbstractConnectorFactory<HttpRequestSp
         }
 
         return webClientBuilder.clientConnector(new ReactorClientHttpConnector(httpClient))
-                .codecs(configurer -> configurer.defaultCodecs().maxInMemorySize(16 * 1024 * 1024)) // 增加内存限制
+                .codecs(configurer -> configurer.defaultCodecs().maxInMemorySize(16 * 1024 * 1024))
                 .build();
     }
 }

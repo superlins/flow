@@ -56,4 +56,11 @@ public class R2dbcWorkflowRepository implements WorkflowRepository {
         return workflowEntityRepository.findByKeyAndVersion(key, version)
                 .flatMap(workflowEntityRepository::delete);
     }
+
+    @Override
+    public Mono<List<Workflow>> findAll() {
+        return workflowEntityRepository.findAllOrdered()
+                .map(WorkflowEntity::toWorkflow)
+                .collect(Collectors.toList());
+    }
 }

@@ -1,5 +1,5 @@
 import axios from 'axios';
-import type { Workflow, WorkflowExecution, CreateWorkflowRequest } from '../types/workflow';
+import type { Workflow, WorkflowExecution, CreateWorkflowRequest, UpdateWorkflowRequest } from '../types/workflow';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080';
 
@@ -52,5 +52,14 @@ export const workflowApi = {
   getExecution: async (executionId: string): Promise<WorkflowExecution> => {
     const response = await api.get(`/executions/${executionId}`);
     return response.data;
+  },
+
+  update: async (key: string, version: number, data: UpdateWorkflowRequest): Promise<Workflow> => {
+    const response = await api.patch(`/${key}/${version}`, data);
+    return response.data;
+  },
+
+  delete: async (key: string, version: number): Promise<void> => {
+    await api.delete(`/${key}/${version}`);
   },
 };

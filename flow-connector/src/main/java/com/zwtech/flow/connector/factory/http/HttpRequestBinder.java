@@ -1,45 +1,46 @@
 package com.zwtech.flow.connector.factory.http;
 
-import com.zwtech.flow.core.DefaultVariableContext;
+import com.zwtech.flow.connector.RequestSpec;
+import com.zwtech.flow.connector.binding.RequestBinder;
+import com.zwtech.flow.connector.specs.DatasourceSpecs;
+import com.zwtech.flow.connector.specs.HttpDatasourceSpecs;
 import com.zwtech.flow.core.ExecutionExchange;
 import com.zwtech.flow.core.VariableContext;
 import com.zwtech.flow.core.parser.TemplateExpressionParser;
+import com.zwtech.flow.domain.model.apidatasource.connection.HttpDatasourceConnection;
 import com.zwtech.flow.domain.model.apidatasource.operation.HttpDatasourceOperation;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
-import com.fasterxml.jackson.databind.ObjectMapper;
 
 import java.util.HashMap;
 import java.util.Map;
 
 /**
- * 将 Datasource 级别的 ExecutionExchange.request（JSON）
- * 与 HttpOperationBehavior（静态 HTTP 模板）绑定为一次具体调用所需的 HttpRequestSpec。
+ * HTTP 请求绑定器
  * <p>
- * 支持解析模板表达式（例如 {{ $request.userId }}）
+ * 将 ExecutionExchange 转换为 HttpRequestSpec。
+ * 使用 VariableContext 解析模板表达式。
+ *
+ * @author renc
  */
-public final class HttpRequestBinder {
+public final class HttpRequestBinder
+        implements RequestBinder<HttpRequestSpec, HttpDatasourceSpecs> {
 
-    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
     private static final TemplateExpressionParser TEMPLATE_PARSER = new TemplateExpressionParser();
 
-    private HttpRequestBinder() {
+    public HttpRequestBinder() {
     }
 
-    /**
-     * 绑定 ExecutionExchange 和 HttpOperationBehavior 为 HttpRequestSpec
-     * 
-     * @param exchange ExecutionExchange
-     * @param operation HttpOperationBehavior
-     * @param connectionBaseUrl 连接的基础 URL（从 ConnectionSpec 获取）
-     * @return HttpRequestSpec
-     */
-    public static HttpRequestSpec bind(ExecutionExchange exchange, HttpDatasourceOperation operation, String connectionBaseUrl) {
-        // 创建变量上下文
-        VariableContext variableContext = new DefaultVariableContext(exchange.getRequest(), exchange.getResponse());
+    @Override
+    public HttpRequestSpec bind(ExecutionExchange exchange, HttpDatasourceSpecs specs) {
+        HttpDatasourceOperation operation = specs.getOperation();
+        HttpDatasourceConnection connection = specs.getConnection();
+
+        // 使用统一的 VariableContext
+        VariableContext variableContext = exchange.getVariableContext();
 
         // 解析 URL（支持模板表达式）
-        String url = parseUrl(operation.url(), connectionBaseUrl, variableContext);
+        String url = parseUrl(operation.url(), connection.baseUrl(), variableContext);
 
         // 解析 Headers（支持模板表达式）
         HttpHeaders headers = parseHeaders(operation.headers(), variableContext);
@@ -59,14 +60,14 @@ public final class HttpRequestBinder {
                 .queryParams(queryParams)
                 .body(body)
                 .timeout(operation.timeout())
-                .retries(0) // 默认不重试，可通过配置设置
+                .retries(0)
                 .build();
     }
 
     /**
      * 解析 URL，支持模板表达式和基础 URL 拼接
      */
-    private static String parseUrl(String urlTemplate, String baseUrl, VariableContext variableContext) {
+    private String parseUrl(String urlTemplate, String baseUrl, VariableContext variableContext) {
         if (urlTemplate == null || urlTemplate.isEmpty()) {
             return baseUrl != null ? baseUrl : "";
         }
@@ -75,11 +76,9 @@ public final class HttpRequestBinder {
         String fullUrl = urlTemplate;
         if (baseUrl != null && !baseUrl.isEmpty()) {
             if (urlTemplate.startsWith("/")) {
-                // 移除 baseUrl 末尾的斜杠
                 String normalizedBase = baseUrl.endsWith("/") ? baseUrl.substring(0, baseUrl.length() - 1) : baseUrl;
                 fullUrl = normalizedBase + urlTemplate;
             } else if (!urlTemplate.startsWith("http://") && !urlTemplate.startsWith("https://")) {
-                // 相对路径，拼接基础 URL
                 String normalizedBase = baseUrl.endsWith("/") ? baseUrl : baseUrl + "/";
                 fullUrl = normalizedBase + urlTemplate;
             }
@@ -93,7 +92,7 @@ public final class HttpRequestBinder {
     /**
      * 解析 Headers，支持模板表达式
      */
-    private static HttpHeaders parseHeaders(Map<String, String> headersTemplate, VariableContext variableContext) {
+    private HttpHeaders parseHeaders(Map<String, String> headersTemplate, VariableContext variableContext) {
         HttpHeaders headers = new HttpHeaders();
         if (headersTemplate != null) {
             headersTemplate.forEach((k, v) -> {
@@ -109,7 +108,7 @@ public final class HttpRequestBinder {
     /**
      * 解析 QueryParams，支持模板表达式
      */
-    private static Map<String, Object> parseQueryParams(Map<String, Object> queryParamsTemplate, VariableContext variableContext) {
+    private Map<String, Object> parseQueryParams(Map<String, Object> queryParamsTemplate, VariableContext variableContext) {
         Map<String, Object> queryParams = new HashMap<>();
         if (queryParamsTemplate != null) {
             queryParamsTemplate.forEach((k, v) -> {
@@ -123,7 +122,7 @@ public final class HttpRequestBinder {
     /**
      * 解析 Body，支持模板表达式
      */
-    private static Object parseBody(Map<String, Object> bodyTemplate, VariableContext variableContext) {
+    private Object parseBody(Map<String, Object> bodyTemplate, VariableContext variableContext) {
         if (bodyTemplate == null || bodyTemplate.isEmpty()) {
             return null;
         }

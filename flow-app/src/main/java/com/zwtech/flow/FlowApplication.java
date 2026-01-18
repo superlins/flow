@@ -1,4 +1,4 @@
-package com.zwtech.flow.app;
+package com.zwtech.flow;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;

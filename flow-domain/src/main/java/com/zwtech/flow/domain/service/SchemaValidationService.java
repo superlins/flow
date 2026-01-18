@@ -23,5 +23,5 @@ public interface SchemaValidationService {
      * @param input 待验证的输入数据
      * @throws DomainException 如果验证失败
      */
-    void validate(String schema, Object input);
+    void validate(String schema, Object input) throws DomainException;
 }

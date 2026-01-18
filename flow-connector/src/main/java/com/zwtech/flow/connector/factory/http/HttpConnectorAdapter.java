@@ -1,163 +1,170 @@
 package com.zwtech.flow.connector.factory.http;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.zwtech.flow.connector.Connector;
 import com.zwtech.flow.connector.ConnectorAdapter;
 import com.zwtech.flow.connector.DefaultExecutionEnvelope;
 import com.zwtech.flow.connector.ExecutionEnvelope;
 import com.zwtech.flow.connector.factory.ConnectorEndpointTypeNames;
-import com.zwtech.flow.connector.filter.ConnectorFilter;
-import com.zwtech.flow.connector.filter.ConnectorFilterChain;
-import com.zwtech.flow.connector.filter.DefaultConnectorFilterChain;
-import com.zwtech.flow.core.DefaultVariableContext;
+import com.zwtech.flow.connector.filter.*;
+import com.zwtech.flow.connector.specs.DatasourceSpecs;
+import com.zwtech.flow.connector.specs.HttpDatasourceSpecs;
+import com.zwtech.flow.connector.specs.SpecsConverter;
 import com.zwtech.flow.core.ExecutionExchange;
+import com.zwtech.flow.core.VariableContext;
 import com.zwtech.flow.core.plugin.SpringPluginManager;
 import com.zwtech.flow.domain.model.apidatasource.ApiDatasource;
-import com.zwtech.flow.domain.model.apidatasource.operation.HttpDatasourceOperation;
-import com.zwtech.flow.domain.model.apidatasource.connection.HttpDatasourceConnection;
 import com.zwtech.flow.domain.service.SchemaValidationService;
+import org.springframework.context.ApplicationContext;
+import org.springframework.core.OrderComparator;
+import org.springframework.core.Ordered;
 import reactor.core.publisher.Mono;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 
-import java.util.LinkedList;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
- * HTTP Connector 适配器：
+ * HTTP Connector 适配器
  * <p>
- * 1. 从 ExecutionExchange.request 读取 JsonNode
- * 2. 按 ApiDatasource.contract.inputSchema 做 JSON Schema 校验
- * 3. 绑定为 HttpRequestSpec，构建 ExecutionEnvelope
- * 4. 通过 ConnectorFilterChain + Connector 发起调用
- * 5. 将 HttpResponseSpec 映射为 JsonNode，按 outputSchema 校验
- * 6. 写回 ExecutionExchange.response，返回新的 ExecutionExchange
+ * 执行流程：
+ * 1. 输入校验（使用 Datasource Contract）
+ * 2. 转换为 DatasourceSpecs（规格层）
+ * 3. 使用 RequestBinder 绑定为 HttpRequestSpec
+ * 4. 通过 ConnectorFilterChain + Connector 执行
+ * 5. 使用 ResponseConverter 转换响应
+ * 6. 输出校验（使用 Datasource Contract）
  *
  * @author renc
  */
 public class HttpConnectorAdapter implements ConnectorAdapter {
 
-    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
-
     private final SpringPluginManager pluginManager;
-
+    private final ApplicationContext applicationContext;
     private final HttpConnectorFactory connectorFactory;
     private final SchemaValidationService schemaValidationService;
+    private final HttpRequestBinder requestBinder;
+    private final HttpResponseConverter responseConverter;
 
-    public HttpConnectorAdapter(SpringPluginManager pluginManager, HttpConnectorFactory connectorFactory, SchemaValidationService schemaValidationService) {
+    public HttpConnectorAdapter(SpringPluginManager pluginManager,
+                                 ApplicationContext applicationContext,
+                                 HttpConnectorFactory connectorFactory,
+                                 SchemaValidationService schemaValidationService) {
         this.pluginManager = pluginManager;
+        this.applicationContext = applicationContext;
         this.connectorFactory = connectorFactory;
+        this.requestBinder = new HttpRequestBinder();
+        this.responseConverter = new HttpResponseConverter();
         this.schemaValidationService = schemaValidationService;
     }
 
+    @Override
     public boolean supports(String type) {
         return ConnectorEndpointTypeNames.HTTP.equals(type);
     }
 
     @Override
     public Mono<ExecutionExchange> execute(ExecutionExchange exchange, ApiDatasource datasource) {
-
-        // 1. 获取 Operation 和 Contract
-        var operation = datasource.operation();
+        // 1. 获取 Contract 并校验输入
         var contract = datasource.contract();
-        var behavior = (HttpDatasourceOperation) operation;
-
-        // 2. 从 ExecutionExchange 取出 JsonNode
         JsonNode inputNode = exchange.getRequest();
-
-        // 3. 按 Datasource Contract 的 inputSchema 做运行期 JSON Schema 校验
         schemaValidationService.validate(contract.inputSchema(), inputNode);
 
-        // 4. 获取 Connection 配置
-        var connection = (HttpDatasourceConnection) datasource.connection();
-        String baseUrl = connection != null ? connection.baseUrl() : null;
+        // 2. 转换为 DatasourceSpecs（规格层）
+        DatasourceSpecs specs = SpecsConverter.toSpecs(datasource);
+        HttpDatasourceSpecs httpSpecs = (HttpDatasourceSpecs) specs;
 
-        // 5. 将输入绑定为 HttpRequestSpec（使用 HttpRequestBinder 解析模板表达式）
-        var requestSpec = HttpRequestBinder.bind(exchange, behavior, baseUrl);
+        // 3. 使用 RequestBinder 绑定为 HttpRequestSpec
+        HttpRequestSpec requestSpec = requestBinder.bind(exchange, httpSpecs);
 
-        // 6. 构建 ExecutionEnvelope（不可变）
+        // 4. 构建 ExecutionEnvelope
         ExecutionEnvelope<HttpRequestSpec, HttpResponseSpec> envelope = DefaultExecutionEnvelope.of(requestSpec);
 
-        // 7. 创建 Connector - 通过 datasource.connection 创建客户端实例
-        Connector<HttpRequestSpec, HttpResponseSpec> connector = connectorFactory.create(datasource);
+        // 5. 创建 Connector（基于规格）
+        Connector<HttpRequestSpec, HttpResponseSpec> connector = connectorFactory.create(specs);
 
-        // 8. 构建 Filter 列表（全局 + 插件）
-        var filters = new LinkedList<ConnectorFilter<HttpRequestSpec, HttpResponseSpec>>();
-        datasource.extensions().forEach(extension -> {
-            var extensions = pluginManager.getExtensions(ConnectorFilter.class, extension.id());
-            for (var connectorFilter : extensions) {
-                //noinspection unchecked
-                filters.add((ConnectorFilter<HttpRequestSpec, HttpResponseSpec>) connectorFilter);
-            }
-        });
+        // 6. 构建 Filter 列表（全局 + 插件），按 Order 统一排序
+        List<ConnectorFilter<HttpRequestSpec, HttpResponseSpec>> filters = buildFilters(datasource);
 
-        // 9. 构建 ConnectorFilterChain
+        // 7. 构建 ConnectorFilterChain
         ConnectorFilterChain chain = new DefaultConnectorFilterChain<>(connector, filters);
 
-        // 10. 执行 Filter 链和 Connector
+        // 8. 执行 Filter 链和 Connector
         return chain.filter(envelope).map(finalEnvelope -> {
-            HttpResponseSpec respSpec = finalEnvelope.responseSpec()
+            HttpResponseSpec responseSpec = finalEnvelope.responseSpec()
                     .orElseThrow(() -> new IllegalStateException("ResponseSpec is empty"));
 
-            exchange.getAttributes().put("rawHttpResponse", respSpec);
+            // 9. 使用 ResponseConverter 转换响应（直接转换）
+            JsonNode responseData = responseConverter.convert(responseSpec);
+            exchange.getAttributes().put("rawHttpResponse", responseSpec);
 
-            // 11. 创建响应时的变量上下文（包含 $request 和 $response）
-            var responseVariableContext = new DefaultVariableContext(
-                    exchange.getRequest(),
-                    convertResponseToJsonNode(respSpec)
-            );
+            // 10. 构建用于表达式解析的变量上下文
+            JsonNode responseVar = responseConverter.toVariableFormat(responseSpec);
+            VariableContext responseContext = exchange.getVariableContext().withResponse(responseVar);
 
-            // 12. 将响应结果投影到 Datasource.operation.responseBody 并返回 JsonNode
-            final var outputNode = OBJECT_MAPPER.createObjectNode();
-            if (behavior.responseBody() != null) {
-                var templateParser = new com.zwtech.flow.core.parser.TemplateExpressionParser();
-                behavior.responseBody().forEach((k, v) -> {
-                    Object parsed = templateParser.parseObject(v, responseVariableContext);
-                    if (parsed instanceof JsonNode) {
-                        outputNode.set(k, (JsonNode) parsed);
-                    } else if (parsed != null) {
-                        outputNode.putPOJO(k, parsed);
-                    }
-                });
-            } else {
-                // 如果没有定义 responseBody 映射，直接使用原始响应
-                // outputNode = respSpec.getBody() != null ? respSpec.getBody() : OBJECT_MAPPER.createObjectNode();
-            }
+            // 11. 使用 ResponseConverter 投影响应（字段映射）
+            JsonNode outputNode = responseConverter.project(responseSpec, httpSpecs, responseContext);
 
-            // 13. 按 Datasource Contract 的 outputSchema 做运行期 JSON Schema 校验
+            // 12. 输出校验
             schemaValidationService.validate(contract.outputSchema(), outputNode);
 
-            // 14. 写回 ExecutionExchange.response（不可变）
-            var exchange1 = exchange.mutate().response(outputNode).build();
-            var attributes = finalEnvelope.attributes().toMap();
-            exchange1.getAttributes().putAll(attributes);
+            // 13. 写回 ExecutionExchange
+            ExecutionExchange resultExchange = exchange.mutate()
+                    .response(outputNode)
+                    .build();
 
-            return exchange1;
+            // 合并 envelope 的 attributes
+            var attributes = finalEnvelope.attributes().toMap();
+            resultExchange.getAttributes().putAll(attributes);
+
+            return resultExchange;
         });
     }
 
     /**
-     * 将 HttpResponseSpec 转换为 JsonNode，用于表达式解析中的 $response 变量
+     * 构建过滤器列表，合并 GlobalFilters 和 PF4J ConnectorFilters，并按 Order 统一排序
      */
-    private JsonNode convertResponseToJsonNode(HttpResponseSpec respSpec) {
-        var responseNode = OBJECT_MAPPER.createObjectNode();
-        if (respSpec.getStatusCode() != null) {
-            responseNode.put("status", respSpec.getStatusCode().value());
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    private List<ConnectorFilter<HttpRequestSpec, HttpResponseSpec>> buildFilters(ApiDatasource datasource) {
+        List<ConnectorFilter<HttpRequestSpec, HttpResponseSpec>> allFilters = new ArrayList<>();
+
+        // 1. 添加 GlobalFilters（从 Spring ApplicationContext 获取）
+        List<GlobalFilter> globalFilters = new ArrayList<>(
+                applicationContext.getBeansOfType(GlobalFilter.class).values()
+        );
+        globalFilters.sort(OrderComparator.INSTANCE);
+
+        // 将 GlobalFilters 包装成 ConnectorFilter
+        for (GlobalFilter globalFilter : globalFilters) {
+            int order = (globalFilter instanceof Ordered) ? ((Ordered) globalFilter).getOrder() : Ordered.LOWEST_PRECEDENCE;
+            allFilters.add((ConnectorFilter<HttpRequestSpec, HttpResponseSpec>)
+                    new GlobalFilterWrapper(globalFilter, order));
         }
-        if (respSpec.getBody() != null) {
-            responseNode.set("body", respSpec.getBody());
+
+        // 2. 添加 PF4J 插件 ConnectorFilters
+        datasource.extensions().forEach(extension -> {
+            var extensions = pluginManager.getExtensions(ConnectorFilter.class, extension.id());
+            for (var connectorFilter : extensions) {
+                allFilters.add((ConnectorFilter<HttpRequestSpec, HttpResponseSpec>) connectorFilter);
+            }
+        });
+
+        // 3. 按 Order 统一排序所有过滤器
+        allFilters.sort((f1, f2) -> {
+            int order1 = getOrder(f1);
+            int order2 = getOrder(f2);
+            return Integer.compare(order1, order2);
+        });
+
+        return allFilters;
+    }
+
+    /**
+     * 获取过滤器的 Order 值
+     */
+    private int getOrder(ConnectorFilter<?, ?> filter) {
+        if (filter instanceof Ordered) {
+            return ((Ordered) filter).getOrder();
         }
-        if (respSpec.getHeaders() != null) {
-            var headersNode = OBJECT_MAPPER.createObjectNode();
-            respSpec.getHeaders().forEach((name, values) -> {
-                if (values.size() == 1) {
-                    headersNode.put(name, values.get(0));
-                } else {
-                    var arrayNode = OBJECT_MAPPER.createArrayNode();
-                    values.forEach(arrayNode::add);
-                    headersNode.set(name, arrayNode);
-                }
-            });
-            responseNode.set("headers", headersNode);
-        }
-        return responseNode;
+        return Ordered.LOWEST_PRECEDENCE;
     }
 }

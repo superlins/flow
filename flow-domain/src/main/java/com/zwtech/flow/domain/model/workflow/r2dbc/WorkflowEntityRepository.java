@@ -16,18 +16,21 @@ import java.util.List;
 @Repository
 public interface WorkflowEntityRepository extends R2dbcRepository<WorkflowEntity, Long> {
 
-    @Query("SELECT * FROM FLW_WORKFLOW WHERE KEY_ = :key AND VERSION_ = :version")
+    @Query("SELECT * FROM flw_workflow WHERE key_ = :key AND version_ = :version")
     Mono<WorkflowEntity> findByKeyAndVersion(String key, Integer version);
 
-    @Query("SELECT * FROM FLW_WORKFLOW WHERE KEY_ = :key ORDER BY VERSION_ DESC")
+    @Query("SELECT * FROM flw_workflow WHERE key_ = :key ORDER BY version_ DESC")
     Flux<WorkflowEntity> findByKey(String key);
 
-    @Query("SELECT * FROM FLW_WORKFLOW WHERE STATUS_ = :status ORDER BY UPDATED_AT_ DESC")
+    @Query("SELECT * FROM flw_workflow WHERE status_ = :status ORDER BY updated_at_ DESC")
     Flux<WorkflowEntity> findByStatus(String status);
 
-    @Query("SELECT * FROM FLW_WORKFLOW WHERE KEY_ = :key AND STATUS_ = :status ORDER BY VERSION_ DESC")
+    @Query("SELECT * FROM flw_workflow WHERE key_ = :key AND status_ = :status ORDER BY version_ DESC")
     Flux<WorkflowEntity> findByKeyAndStatus(String key, String status);
 
-    @Query("SELECT * FROM FLW_WORKFLOW WHERE STATUS_ = :status OR KEY_ = :key")
+    @Query("SELECT * FROM flw_workflow ORDER BY updated_at_ DESC")
+    Flux<WorkflowEntity> findAllOrdered();
+
+    @Query("SELECT * FROM flw_workflow WHERE status_ = :status OR key_ = :key ORDER BY updated_at_ DESC")
     Flux<WorkflowEntity> findByKeyOrStatus(String key, String status);
 }

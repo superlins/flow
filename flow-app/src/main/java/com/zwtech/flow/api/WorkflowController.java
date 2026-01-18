@@ -27,15 +27,15 @@ import java.util.stream.Collectors;
  */
 @RestController
 @RequestMapping("/api/workflows")
-public class PersistentWorkflowController {
+public class WorkflowController {
 
-    private static final Logger logger = LoggerFactory.getLogger(PersistentWorkflowController.class);
+    private static final Logger logger = LoggerFactory.getLogger(WorkflowController.class);
 
     private final WorkflowRepository workflowRepository;
     private final WorkflowExecutionService executionService;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
-    public PersistentWorkflowController(
+    public WorkflowController(
             WorkflowRepository workflowRepository,
             WorkflowExecutionService executionService) {
         this.workflowRepository = workflowRepository;

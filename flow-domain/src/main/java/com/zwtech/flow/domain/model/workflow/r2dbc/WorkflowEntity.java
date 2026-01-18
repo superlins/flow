@@ -23,41 +23,41 @@ import java.util.*;
  * @author renc
  */
 @Data
-@Table("FLW_WORKFLOW")
+@Table("flw_workflow")
 public class WorkflowEntity {
 
     @Id
-    @Column("ID_")
+    @Column("id_")
     private Long id;
 
-    @Column("KEY_")
+    @Column("key_")
     private String key;
 
-    @Column("VERSION_")
+    @Column("version_")
     private Integer version;
 
-    @Column("NAME_")
+    @Column("name_")
     private String name;
 
-    @Column("DESCRIPTION_")
+    @Column("description_")
     private String description;
 
-    @Column("STATUS_")
+    @Column("status_")
     private String status;
 
-    @Column("NODES_")
+    @Column("nodes_")
     private String nodes;
 
-    @Column("CONNECTIONS_")
+    @Column("connections_")
     private String connections;
 
-    @Column("CONFIG_")
+    @Column("config_")
     private String config;
 
-    @Column("CREATED_AT_")
+    @Column("created_at_")
     private Instant createdAt;
 
-    @Column("UPDATED_AT_")
+    @Column("updated_at_")
     private Instant updatedAt;
 
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();

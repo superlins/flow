@@ -21,12 +21,10 @@
         <dependency>
             <groupId>com.zwtech</groupId>
             <artifactId>flow-core</artifactId>
-            <version>0.0.1-SNAPSHOT</version>
         </dependency>
         <dependency>
             <groupId>com.zwtech</groupId>
             <artifactId>flow-domain</artifactId>
-            <version>0.0.1-SNAPSHOT</version>
         </dependency>
     </dependencies>
 </project>

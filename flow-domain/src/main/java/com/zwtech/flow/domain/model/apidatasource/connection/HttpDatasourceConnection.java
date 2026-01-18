@@ -1,12 +1,13 @@
 package com.zwtech.flow.domain.model.apidatasource.connection;
 
+import lombok.Getter;
 import java.time.Duration;
 import java.util.Objects;
 
 /**
  * HTTP 连接规范
  * 描述如何连接到 HTTP 目标系统（超时、认证等）
- * 
+ *
  * 根据 README.md 中的定义，支持：
  * - baseUrl: 基础 URL
  * - timeout: 超时配置（timeout, connectionTimeout, responseTimeout）
@@ -16,6 +17,7 @@ import java.util.Objects;
  *
  * @author renc
  */
+@Getter
 public final class HttpDatasourceConnection implements DatasourceConnection {
 
     private final String baseUrl;

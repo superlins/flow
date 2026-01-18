@@ -15,9 +15,9 @@ import java.util.List;
 @Repository
 public interface WorkflowExecutionEntityRepository extends R2dbcRepository<WorkflowExecutionEntity, Long> {
 
-    @Query("SELECT * FROM FLW_WORKFLOW_EXECUTION WHERE EXECUTION_ID_ = :executionId")
+    @Query("SELECT * FROM flw_workflow_execution WHERE execution_id_ = :executionId")
     Mono<WorkflowExecutionEntity> findByExecutionId(String executionId);
 
-    @Query("SELECT * FROM FLW_WORKFLOW_EXECUTION WHERE WORKFLOW_KEY_ = :key AND WORKFLOW_VERSION_ = :version ORDER BY STARTED_AT_ DESC")
+    @Query("SELECT * FROM flw_workflow_execution WHERE workflow_key_ = :key AND workflow_version_ = :version ORDER BY started_at_ DESC")
     List<WorkflowExecutionEntity> findByWorkflowKeyAndVersion(String key, Integer version);
 }

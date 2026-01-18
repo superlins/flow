@@ -58,4 +58,17 @@ public final class DatasourceContract implements ValueObject<DatasourceContract>
     public String toString() {
         return "DatasourceContract{strict=" + strict + "}";
     }
+
+    /* Helper methods for updating individual fields */
+    public DatasourceContract withInputSchema(String inputSchema) {
+        return new DatasourceContract(inputSchema, this.outputSchema, this.strict);
+    }
+
+    public DatasourceContract withOutputSchema(String outputSchema) {
+        return new DatasourceContract(this.inputSchema, outputSchema, this.strict);
+    }
+
+    public DatasourceContract withStrict(boolean strict) {
+        return new DatasourceContract(this.inputSchema, this.outputSchema, strict);
+    }
 }

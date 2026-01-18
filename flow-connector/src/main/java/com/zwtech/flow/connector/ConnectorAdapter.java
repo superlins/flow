@@ -11,6 +11,8 @@ import reactor.core.publisher.Mono;
  */
 public interface ConnectorAdapter {
 
+    boolean supports(String type);
+
     /**
      * 执行数据源操作
      * 

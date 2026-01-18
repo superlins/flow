@@ -31,6 +31,12 @@ public class ApiServiceRepositoryR2dbc implements ApiServiceRepository {
     }
 
     @Override
+    public Flux<ApiService> findAll() {
+        return apiServiceEntityRepository.findAllOrdered()
+                .map(ApiServiceEntity::toApiService);
+    }
+
+    @Override
     public Mono<Void> save(ApiService service) {
         return apiServiceEntityRepository.save(ApiServiceEntity.fromApiService(service))
                 .then();

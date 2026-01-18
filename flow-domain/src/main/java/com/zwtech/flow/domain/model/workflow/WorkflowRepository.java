@@ -32,6 +32,11 @@ public interface WorkflowRepository {
     Mono<List<Workflow>> findByKey(String key, WorkflowStatus status);
 
     /**
+     * 查询所有 Workflow
+     */
+    Mono<List<Workflow>> findAll();
+
+    /**
      * 删除 Workflow（仅支持归档状态）
      */
     Mono<Void> delete(String key, int version);

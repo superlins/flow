@@ -12,6 +12,8 @@ public interface ApiDatasourceRepository {
 
     Flux<ApiDatasource> findByKey(String key);
 
+    Flux<ApiDatasource> findAll();
+
     Mono<ApiDatasource> save(ApiDatasource datasource);
 
     Mono<Boolean> isReferenced(DatasourceId id);

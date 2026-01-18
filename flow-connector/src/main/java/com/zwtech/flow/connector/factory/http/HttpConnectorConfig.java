@@ -1,5 +1,7 @@
 package com.zwtech.flow.connector.factory.http;
 
+import com.zwtech.flow.domain.model.apidatasource.connection.HttpDatasourceConnection;
+
 import java.time.Duration;
 
 /**
@@ -30,6 +32,15 @@ public final class HttpConnectorConfig {
      * Whether to disable certificate validation for the http client.
      */
     private boolean certVerifyDisabled;
+
+    public static HttpConnectorConfig from(HttpDatasourceConnection connection) {
+        HttpConnectorConfig httpConnectorConfig = new HttpConnectorConfig();
+        httpConnectorConfig.setConnectionTimeout(connection.getConnectionTimeout());
+        httpConnectorConfig.setResponseTimeout(connection.getResponseTimeout());
+        httpConnectorConfig.setCertVerifyDisabled(true);
+        httpConnectorConfig.setRetryDisabled(true);
+        return httpConnectorConfig;
+    }
 
     public Duration getConnectionTimeout() {
         return connectionTimeout;

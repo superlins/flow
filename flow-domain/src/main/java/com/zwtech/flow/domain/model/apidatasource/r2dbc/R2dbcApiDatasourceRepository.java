@@ -8,6 +8,8 @@ import org.springframework.stereotype.Repository;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
+import java.util.List;
+
 /**
  * ApiDatasource R2DBC Repository 实现
  * 
@@ -37,6 +39,12 @@ public class R2dbcApiDatasourceRepository implements ApiDatasourceRepository {
     @Override
     public Flux<ApiDatasource> findByKey(String key) {
         return apiDatasourceEntityRepository.findByKey(key)
+                .map(ApiDatasourceEntity::toApiDatasource);
+    }
+
+    @Override
+    public Flux<ApiDatasource> findAll() {
+        return apiDatasourceEntityRepository.findAllOrdered()
                 .map(ApiDatasourceEntity::toApiDatasource);
     }
 

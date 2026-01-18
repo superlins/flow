@@ -31,47 +31,47 @@ import java.util.Map;
  * @author renc
  */
 @Data
-@Table("FLW_API_SERVICE")
+@Table("flw_api_service")
 class ApiServiceEntity {
 
     @Id
-    @Column("ID_")
+    @Column("id_")
     private Long id;
 
-    @Column("KEY_")
+    @Column("key_")
     private String key;
 
-    @Column("NAME_")
+    @Column("name_")
     private String name;
 
-    @Column("DESCRIPTION_")
+    @Column("description_")
     private String description;
 
-    @Column("STATUS_")
+    @Column("status_")
     private String status;
 
-    @Column("INPUT_SCHEMA_")
+    @Column("input_schema_")
     private String inputSchema;
 
-    @Column("OUTPUT_SCHEMA_")
+    @Column("output_schema_")
     private String outputSchema;
 
-    @Column("DATASOURCE_KEY_")
+    @Column("datasource_key_")
     private String datasourceKey;
 
-    @Column("DATASOURCE_VERSION_")
+    @Column("datasource_version_")
     private Integer datasourceVersion;
 
-    @Column("BINDING_SPEC_")
-    private String bindingSpec;
+    @Column("input_mapping_")
+    private String inputMapping;
 
-    @Column("OPERATION_KEY_")
-    private String operationKey;
+    @Column("output_mapping_")
+    private String outputMapping;
 
-    @Column("CREATED_AT_")
+    @Column("created_at_")
     private Instant createdAt;
 
-    @Column("UPDATED_AT_")
+    @Column("updated_at_")
     private Instant updatedAt;
 
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
@@ -108,22 +108,22 @@ class ApiServiceEntity {
         if (service.mapping() != null) {
             try {
                 Map<String, Object> mappingJson = new HashMap<>();
-                Map<String, String> inputMapping = new HashMap<>();
-                Map<String, String> outputMapping = new HashMap<>();
-                
+                Map<String, String> inputMappingMap = new HashMap<>();
+                Map<String, String> outputMappingMap = new HashMap<>();
+
                 // 序列化 inputMapping: key 是 targetField，value 是 expression
                 for (Map.Entry<String, FieldBinding> entry : service.mapping().inputMapping().entrySet()) {
-                    inputMapping.put(entry.getKey(), entry.getValue().expression());
+                    inputMappingMap.put(entry.getKey(), entry.getValue().expression());
                 }
-                
+
                 // 序列化 outputMapping: key 是 targetField，value 是 expression
                 for (Map.Entry<String, FieldBinding> entry : service.mapping().outputMapping().entrySet()) {
-                    outputMapping.put(entry.getKey(), entry.getValue().expression());
+                    outputMappingMap.put(entry.getKey(), entry.getValue().expression());
                 }
-                
-                mappingJson.put("input", inputMapping);
-                mappingJson.put("output", outputMapping);
-                entity.setBindingSpec(OBJECT_MAPPER.writeValueAsString(mappingJson));
+
+                mappingJson.put("input", inputMappingMap);
+                mappingJson.put("output", outputMappingMap);
+                entity.setInputMapping(OBJECT_MAPPER.writeValueAsString(mappingJson));
             } catch (Exception e) {
                 throw new RuntimeException("Failed to serialize ServiceMapping", e);
             }
@@ -155,10 +155,10 @@ class ApiServiceEntity {
         
         // Mapping（反序列化）
         ServiceMapping mapping = ServiceMapping.empty();
-        if (bindingSpec != null && !bindingSpec.isEmpty()) {
+        if (inputMapping != null && !inputMapping.isEmpty()) {
             try {
                 Map<String, Object> mappingJson = OBJECT_MAPPER.readValue(
-                        bindingSpec,
+                        inputMapping,
                         new TypeReference<Map<String, Object>>() {});
 
                 // 检测模式：如果有 workflowId 则为 WORKFLOW 模式

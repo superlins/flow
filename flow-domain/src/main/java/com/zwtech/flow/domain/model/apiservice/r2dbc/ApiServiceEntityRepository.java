@@ -22,7 +22,7 @@ interface ApiServiceEntityRepository extends ReactiveCrudRepository<ApiServiceEn
      * 根据 Datasource 引用查找所有 Service
      * 用于实现 isReferenced 检查
      */
-    @Query("SELECT * FROM FLW_API_SERVICE WHERE DATASOURCE_KEY_ = :key AND DATASOURCE_VERSION_ = :version")
+    @Query("SELECT * FROM flw_api_service WHERE datasource_key_ = :key AND datasource_version_ = :version")
     Flux<ApiServiceEntity> findByDatasourceKeyAndVersion(
             @Param("key") String key,
             @Param("version") Integer version);
@@ -30,9 +30,12 @@ interface ApiServiceEntityRepository extends ReactiveCrudRepository<ApiServiceEn
     /**
      * 检查是否存在引用指定 Datasource 的 Service
      */
-    @Query("SELECT COUNT(*) > 0 FROM FLW_API_SERVICE WHERE DATASOURCE_KEY_ = :key AND DATASOURCE_VERSION_ = :version")
+    @Query("SELECT COUNT(*) > 0 FROM flw_api_service WHERE datasource_key_ = :key AND datasource_version_ = :version")
     Mono<Boolean> existsByDatasourceKeyAndVersion(
             @Param("key") String key,
             @Param("version") Integer version);
+
+    @Query("SELECT * FROM flw_api_service ORDER BY updated_at_ DESC")
+    Flux<ApiServiceEntity> findAllOrdered();
 }
 

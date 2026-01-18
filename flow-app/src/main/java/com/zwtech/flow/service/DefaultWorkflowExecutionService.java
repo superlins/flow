@@ -1,4 +1,4 @@
-package com.zwtech.flow.app.service;
+package com.zwtech.flow.service;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.zwtech.flow.domain.model.workflow.*;
@@ -10,12 +10,7 @@ import org.springframework.stereotype.Service;
 import reactor.core.publisher.Mono;
 
 import java.time.Duration;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Set;
+import java.util.*;
 import java.util.stream.Collectors;
 
 /**
@@ -30,9 +25,13 @@ public class DefaultWorkflowExecutionService implements WorkflowExecutionService
     private static final Logger logger = LoggerFactory.getLogger(DefaultWorkflowExecutionService.class);
 
     private final DatasourceExecutionService datasourceExecutionService;
+    private final WorkflowExecutionStore executionStore;
 
-    public DefaultWorkflowExecutionService(DatasourceExecutionService datasourceExecutionService) {
+    public DefaultWorkflowExecutionService(
+            DatasourceExecutionService datasourceExecutionService,
+            WorkflowExecutionStore executionStore) {
         this.datasourceExecutionService = datasourceExecutionService;
+        this.executionStore = executionStore != null ? executionStore : WorkflowExecutionStore.NULL;
     }
 
     @Override
@@ -53,6 +52,10 @@ public class DefaultWorkflowExecutionService implements WorkflowExecutionService
 
         return executeInternal(workflow, execution)
                 .timeout(timeout)
+                .doOnNext(result -> {
+                    // 保存执行结果
+                    executionStore.saveExecution(result).subscribe();
+                })
                 .onErrorResume(throwable -> {
                     if (throwable instanceof java.util.concurrent.TimeoutException) {
                         return Mono.fromCallable(() -> {
@@ -64,6 +67,10 @@ public class DefaultWorkflowExecutionService implements WorkflowExecutionService
                         execution.fail(throwable.getMessage());
                         return execution;
                     });
+                })
+                .doOnError(error -> {
+                    // 保存失败状态
+                    executionStore.saveExecution(execution).subscribe();
                 });
     }
 
@@ -157,13 +164,9 @@ public class DefaultWorkflowExecutionService implements WorkflowExecutionService
 
         var nodeInput = aggregateNodeInputs(workflow, context, node);
         var datasourceId = node.datasourceId();
-        var operationKey = node.operationKey();
-
-        // 从节点配置中获取 contract
-        var contract = getDatasourceContract(node);
 
         // 调用 DatasourceExecutionService 执行操作
-        return datasourceExecutionService.execute(datasourceId, operationKey, nodeInput, contract)
+        return datasourceExecutionService.execute(datasourceId, nodeInput)
                 .map(output -> {
                     context.setNodeOutput(node.id(), output);
                     return node;
@@ -171,22 +174,6 @@ public class DefaultWorkflowExecutionService implements WorkflowExecutionService
                 .doOnError(error -> {
                     logger.error("Failed to execute datasource node: {}, error: {}", node.id(), error.getMessage());
                 });
-    }
-
-    /**
-     * 从节点配置中提取 DatasourceContract
-     */
-    private com.zwtech.flow.domain.model.apidatasource.DatasourceContract getDatasourceContract(Node node) {
-        var config = node.config();
-        Object inputSchema = config.get("inputSchema");
-        Object outputSchema = config.get("outputSchema");
-        Object strict = config.get("strict");
-
-        String inputSchemaStr = inputSchema != null ? inputSchema.toString() : "{}";
-        String outputSchemaStr = outputSchema != null ? outputSchema.toString() : "{}";
-        boolean strictBool = strict != null && Boolean.parseBoolean(strict.toString());
-
-        return new com.zwtech.flow.domain.model.apidatasource.DatasourceContract(inputSchemaStr, outputSchemaStr, strictBool);
     }
 
     private Mono<Node> executeSimpleNode(
@@ -477,14 +464,22 @@ public class DefaultWorkflowExecutionService implements WorkflowExecutionService
 
     @Override
     public Mono<WorkflowExecution> cancel(WorkflowExecutionId executionId) {
-        // TODO: 实现取消逻辑
-        return Mono.error(new UnsupportedOperationException("Cancel not implemented yet"));
+        return executionStore.getExecution(executionId)
+                .flatMap(execution -> {
+                    if (execution.status() != WorkflowExecutionStatus.RUNNING &&
+                        execution.status() != WorkflowExecutionStatus.PENDING) {
+                        return Mono.error(new IllegalStateException(
+                            "Cannot cancel execution in status: " + execution.status()));
+                    }
+                    execution.cancel();
+                    return executionStore.saveExecution(execution)
+                            .thenReturn(execution);
+                });
     }
 
     @Override
     public Mono<WorkflowExecution> getExecution(WorkflowExecutionId executionId) {
-        // TODO: 从存储中获取执行实例
-        return Mono.error(new UnsupportedOperationException("GetExecution not implemented yet"));
+        return executionStore.getExecution(executionId);
     }
 
     /**
