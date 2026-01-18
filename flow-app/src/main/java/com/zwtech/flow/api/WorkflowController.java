@@ -1,7 +1,8 @@
-package com.zwtech.flow.app.api;
+package com.zwtech.flow.api;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.zwtech.flow.api.dto.WorkflowDTO;
 import com.zwtech.flow.domain.model.workflow.*;
 import com.zwtech.flow.domain.service.WorkflowExecutionService;
 import com.zwtech.flow.domain.model.workflow.WorkflowRepository;
@@ -16,6 +17,7 @@ import reactor.core.publisher.Mono;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 /**
  * Workflow REST API with Persistence
@@ -44,7 +46,7 @@ public class PersistentWorkflowController {
      * 创建工作流
      */
     @PostMapping
-    public Mono<ResponseEntity<Workflow>> createWorkflow(@RequestBody Map<String, Object> request) {
+    public Mono<ResponseEntity<WorkflowDTO>> createWorkflow(@RequestBody Map<String, Object> request) {
         return Mono.fromCallable(() -> {
             String key = (String) request.get("key");
             String name = (String) request.get("name");
@@ -63,19 +65,21 @@ public class PersistentWorkflowController {
 
             return workflow;
         }).flatMap(workflowRepository::save)
-                .map(workflow -> ResponseEntity.status(HttpStatus.CREATED).body(workflow));
+                .map(WorkflowDTO::fromWorkflow)
+                .map(workflowDTO -> ResponseEntity.status(HttpStatus.CREATED).body(workflowDTO));
     }
 
     /**
      * 获取工作流详情
      */
     @GetMapping("/{key}/{version}")
-    public Mono<ResponseEntity<Workflow>> getWorkflow(
+    public Mono<ResponseEntity<WorkflowDTO>> getWorkflow(
             @PathVariable String key,
             @PathVariable int version) {
 
         return workflowRepository.findById(key, version)
                 .switchIfEmpty(Mono.error(new ResponseStatusException(HttpStatus.NOT_FOUND)))
+                .map(WorkflowDTO::fromWorkflow)
                 .map(ResponseEntity::ok);
     }
 
@@ -83,7 +87,7 @@ public class PersistentWorkflowController {
      * 启用工作流
      */
     @PostMapping("/{key}/{version}/enable")
-    public Mono<ResponseEntity<Workflow>> enableWorkflow(
+    public Mono<ResponseEntity<WorkflowDTO>> enableWorkflow(
             @PathVariable String key,
             @PathVariable int version) {
 
@@ -93,6 +97,7 @@ public class PersistentWorkflowController {
                     try {
                         workflow.enable();
                         return workflowRepository.save(workflow)
+                                .map(WorkflowDTO::fromWorkflow)
                                 .map(ResponseEntity::ok);
                     } catch (IllegalStateException e) {
                         return Mono.error(new ResponseStatusException(HttpStatus.CONFLICT, e.getMessage()));
@@ -104,7 +109,7 @@ public class PersistentWorkflowController {
      * 停用工作流
      */
     @PostMapping("/{key}/{version}/disable")
-    public Mono<ResponseEntity<Workflow>> disableWorkflow(
+    public Mono<ResponseEntity<WorkflowDTO>> disableWorkflow(
             @PathVariable String key,
             @PathVariable int version) {
 
@@ -114,6 +119,7 @@ public class PersistentWorkflowController {
                     try {
                         workflow.disable();
                         return workflowRepository.save(workflow)
+                                .map(WorkflowDTO::fromWorkflow)
                                 .map(ResponseEntity::ok);
                     } catch (IllegalStateException e) {
                         return Mono.error(new ResponseStatusException(HttpStatus.CONFLICT, e.getMessage()));
@@ -125,7 +131,7 @@ public class PersistentWorkflowController {
      * 归档工作流
      */
     @PostMapping("/{key}/{version}/archive")
-    public Mono<ResponseEntity<Workflow>> archiveWorkflow(
+    public Mono<ResponseEntity<WorkflowDTO>> archiveWorkflow(
             @PathVariable String key,
             @PathVariable int version) {
 
@@ -135,6 +141,7 @@ public class PersistentWorkflowController {
                     try {
                         workflow.archive();
                         return workflowRepository.save(workflow)
+                                .map(WorkflowDTO::fromWorkflow)
                                 .map(ResponseEntity::ok);
                     } catch (IllegalStateException e) {
                         return Mono.error(new ResponseStatusException(HttpStatus.CONFLICT, e.getMessage()));
@@ -189,20 +196,68 @@ public class PersistentWorkflowController {
                 workflowsMono = workflowRepository.findByKey(key);
             }
         } else {
-            // 如果没有指定 key，需要查询所有工作流
-            WorkflowStatus queryStatus = status;
-            workflowsMono = Mono.fromCallable(() -> List.<Workflow>of())
-                    .flatMap(list -> Mono.error(new UnsupportedOperationException(
-                            "Querying all workflows by status is not yet supported. Please specify a key parameter.")));
+            // 查询所有工作流
+            workflowsMono = workflowRepository.findAll();
         }
 
         return workflowsMono
                 .map(workflows -> {
+                    var workflowDTOs = workflows.stream()
+                            .map(WorkflowDTO::fromWorkflow)
+                            .collect(Collectors.toList());
                     Map<String, Object> result = Map.of(
-                            "workflows", workflows,
-                            "total", workflows.size()
+                            "workflows", workflowDTOs,
+                            "total", workflowDTOs.size()
                     );
                     return ResponseEntity.ok(result);
+                });
+    }
+
+    /**
+     * 更新工作流元数据
+     */
+    @PatchMapping("/{key}/{version}")
+    public Mono<ResponseEntity<WorkflowDTO>> updateWorkflow(
+            @PathVariable String key,
+            @PathVariable int version,
+            @RequestBody Map<String, Object> request) {
+        return workflowRepository.findById(key, version)
+                .switchIfEmpty(Mono.error(new ResponseStatusException(HttpStatus.NOT_FOUND)))
+                .flatMap(workflow -> {
+                    try {
+                        String name = (String) request.get("name");
+                        String description = (String) request.get("description");
+
+                        workflow.updateMetadata(name, description);
+                        return workflowRepository.save(workflow)
+                                .map(WorkflowDTO::fromWorkflow)
+                                .map(ResponseEntity::ok);
+                    } catch (IllegalStateException e) {
+                        return Mono.error(new ResponseStatusException(HttpStatus.CONFLICT, e.getMessage()));
+                    }
+                });
+    }
+
+    /**
+     * 删除工作流（仅支持 ARCHIVED 状态）
+     */
+    @DeleteMapping("/{key}/{version}")
+    public Mono<ResponseEntity<Void>> deleteWorkflow(
+            @PathVariable String key,
+            @PathVariable int version) {
+        return workflowRepository.findById(key, version)
+                .switchIfEmpty(Mono.error(new ResponseStatusException(HttpStatus.NOT_FOUND)))
+                .flatMap(workflow -> {
+                    try {
+                        if (workflow.status() != WorkflowStatus.ARCHIVED) {
+                            return Mono.error(new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                                    "Only archived workflows can be deleted, current status: " + workflow.status()));
+                        }
+                        return workflowRepository.delete(key, version)
+                                .then(Mono.just(ResponseEntity.noContent().<Void>build()));
+                    } catch (IllegalStateException e) {
+                        return Mono.error(new ResponseStatusException(HttpStatus.CONFLICT, e.getMessage()));
+                    }
                 });
     }
 
