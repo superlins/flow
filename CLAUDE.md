@@ -78,20 +78,6 @@ VariableContext interface:
   - `MetricsFilter` - Micrometer 指标采集
 - **ConnectorFilter** - PF4J 插件，按 Order 统一排序
 
-### Spring Auto-Configuration
-
-```java
-@Configuration
-@ConditionalOnClass(WebClient.class)
-public class ConnectorAutoConfiguration {
-    @Bean WebClient.Builder webClientBuilder()
-    @Bean HttpConnectorFactory httpConnectorFactory()
-    @Bean HttpRequestBinder httpRequestBinder()
-    @Bean HttpResponseConverter httpResponseConverter()
-    @Bean HttpConnectorAdapter httpConnectorAdapter()
-}
-```
-
 ## Database
 
 PostgreSQL via Docker Compose (`docker-compose up postgres -d`):

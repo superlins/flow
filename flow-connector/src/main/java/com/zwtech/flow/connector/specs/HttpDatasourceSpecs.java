@@ -1,9 +1,8 @@
 package com.zwtech.flow.connector.specs;
 
+import com.zwtech.flow.domain.model.apidatasource.ApiDatasource;
 import com.zwtech.flow.domain.model.apidatasource.connection.HttpDatasourceConnection;
 import com.zwtech.flow.domain.model.apidatasource.operation.HttpDatasourceOperation;
-
-import java.util.Map;
 
 /**
  * HTTP 数据源规格
@@ -14,19 +13,13 @@ public final class HttpDatasourceSpecs implements DatasourceSpecs {
 
     private final HttpDatasourceConnection connection;
     private final HttpDatasourceOperation operation;
-    private final Map<String, String> inputMappings;
-    private final Map<String, String> outputMappings;
 
     public HttpDatasourceSpecs(
         HttpDatasourceConnection connection,
-        HttpDatasourceOperation operation,
-        Map<String, String> inputMappings,
-        Map<String, String> outputMappings
+        HttpDatasourceOperation operation
     ) {
         this.connection = connection;
         this.operation = operation;
-        this.inputMappings = inputMappings != null ? Map.copyOf(inputMappings) : Map.of();
-        this.outputMappings = outputMappings != null ? Map.copyOf(outputMappings) : Map.of();
     }
 
     @Override
@@ -40,24 +33,24 @@ public final class HttpDatasourceSpecs implements DatasourceSpecs {
     }
 
     @Override
-    public Map<String, String> getInputMappings() {
-        return inputMappings;
-    }
-
-    @Override
-    public Map<String, String> getOutputMappings() {
-        return outputMappings;
-    }
-
-    @Override
     public String getType() {
         return "http";
+    }
+
+    /**
+     * 从 ApiDatasource 创建 HttpDatasourceSpecs
+     */
+    public static HttpDatasourceSpecs from(ApiDatasource datasource) {
+        return new HttpDatasourceSpecs(
+            (HttpDatasourceConnection) datasource.connection(),
+            (HttpDatasourceOperation) datasource.operation()
+        );
     }
 
     public static HttpDatasourceSpecs of(
         HttpDatasourceConnection connection,
         HttpDatasourceOperation operation
     ) {
-        return new HttpDatasourceSpecs(connection, operation, Map.of(), Map.of());
+        return new HttpDatasourceSpecs(connection, operation);
     }
 }

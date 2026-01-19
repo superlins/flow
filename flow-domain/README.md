@@ -538,7 +538,6 @@ public interface ApiDatasourceRepository {
   "version": "1",
   "description": "DataSource for creating orders",
   "connection": {
-    "baseUrl": "https://api.example.com/v2/",
     "timeout": {
       "timeout": "PT5S",
       "connectionTimeout": "PT1S",
@@ -583,7 +582,7 @@ public interface ApiDatasourceRepository {
     }
   },
   "operation": {
-    "path": "/user/{{ #request.userId }}/orders",
+    "url": "https://api.example.com/v2/user/{{ #request.userId }}/orders",
     "method": "POST",
     "request": {
       "headers": {

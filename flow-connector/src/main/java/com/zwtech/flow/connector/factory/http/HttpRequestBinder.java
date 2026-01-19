@@ -1,8 +1,10 @@
 package com.zwtech.flow.connector.factory.http;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.zwtech.flow.connector.RequestSpec;
 import com.zwtech.flow.connector.binding.RequestBinder;
-import com.zwtech.flow.connector.specs.DatasourceSpecs;
 import com.zwtech.flow.connector.specs.HttpDatasourceSpecs;
 import com.zwtech.flow.core.ExecutionExchange;
 import com.zwtech.flow.core.VariableContext;
@@ -27,6 +29,7 @@ public final class HttpRequestBinder
         implements RequestBinder<HttpRequestSpec, HttpDatasourceSpecs> {
 
     private static final TemplateExpressionParser TEMPLATE_PARSER = new TemplateExpressionParser();
+    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
     public HttpRequestBinder() {
     }
@@ -42,25 +45,26 @@ public final class HttpRequestBinder
         // 解析 URL（支持模板表达式）
         String url = parseUrl(operation.url(), connection.baseUrl(), variableContext);
 
-        // 解析 Headers（支持模板表达式）
-        HttpHeaders headers = parseHeaders(operation.headers(), variableContext);
+        // 解析 Headers（JSON 模板字符串）
+        HttpHeaders headers = parseJsonHeaders(operation.headersTemplate(), variableContext);
 
-        // 解析 QueryParams（支持模板表达式）
-        Map<String, Object> queryParams = parseQueryParams(operation.queryParams(), variableContext);
+        // 解析 QueryParams（JSON 模板字符串）
+        Map<String, Object> queryParams = parseJsonMap(operation.queryParamsTemplate(), variableContext);
 
-        // 解析 Body（支持模板表达式）
-        Object body = parseBody(operation.requestBody(), variableContext);
+        // 解析 Body（JSON 模板字符串）
+        Object body = parseJsonObject(operation.bodyTemplate(), variableContext);
 
         HttpMethod httpMethod = HttpMethod.valueOf(operation.method());
 
+        // 使用连接配置中的 timeout，如果没有则使用默认值
         return HttpRequestSpec.builder()
                 .url(url)
                 .method(httpMethod)
                 .headers(headers)
                 .queryParams(queryParams)
                 .body(body)
-                .timeout(operation.timeout())
-                .retries(0)
+                .timeout(connection.timeout())
+                .retries(connection.maxRetryAttempts() != null ? connection.maxRetryAttempts() : 0)
                 .build();
     }
 
@@ -90,42 +94,65 @@ public final class HttpRequestBinder
     }
 
     /**
-     * 解析 Headers，支持模板表达式
+     * 解析 JSON 模板字符串为 Headers
+     * 例如："{\"Authorization\":\"Bearer {{ #dsInput.token }}\"}"
      */
-    private HttpHeaders parseHeaders(Map<String, String> headersTemplate, VariableContext variableContext) {
+    private HttpHeaders parseJsonHeaders(String template, VariableContext variableContext) {
         HttpHeaders headers = new HttpHeaders();
-        if (headersTemplate != null) {
-            headersTemplate.forEach((k, v) -> {
-                if (v != null) {
-                    Object parsed = TEMPLATE_PARSER.parseTemplate(v, variableContext);
-                    headers.add(k, parsed != null ? String.valueOf(parsed) : v);
-                }
-            });
+        if (template == null || template.isEmpty()) {
+            return headers;
+        }
+
+        String resolved = parseStringTemplate(template, variableContext);
+        try {
+            Map<String, String> headersMap = OBJECT_MAPPER.readValue(
+                    resolved, new TypeReference<Map<String, String>>() {});
+            headersMap.forEach((k, v) -> headers.add(k, v));
+        } catch (Exception e) {
+            throw new IllegalArgumentException("Failed to parse headers template: " + template, e);
         }
         return headers;
     }
 
     /**
-     * 解析 QueryParams，支持模板表达式
+     * 解析 JSON 模板字符串为 Map
+     * 例如："{\"userId\":\"{{ #dsInput.userId }}\",\"limit\":\"{{ #dsInput.limit }}\"}"
      */
-    private Map<String, Object> parseQueryParams(Map<String, Object> queryParamsTemplate, VariableContext variableContext) {
-        Map<String, Object> queryParams = new HashMap<>();
-        if (queryParamsTemplate != null) {
-            queryParamsTemplate.forEach((k, v) -> {
-                Object parsed = TEMPLATE_PARSER.parseObject(v, variableContext);
-                queryParams.put(k, parsed);
-            });
+    private Map<String, Object> parseJsonMap(String template, VariableContext variableContext) {
+        if (template == null || template.isEmpty()) {
+            return new HashMap<>();
         }
-        return queryParams;
+
+        String resolved = parseStringTemplate(template, variableContext);
+        try {
+            return OBJECT_MAPPER.readValue(resolved, new TypeReference<Map<String, Object>>() {});
+        } catch (Exception e) {
+            throw new IllegalArgumentException("Failed to parse JSON map template: " + template, e);
+        }
     }
 
     /**
-     * 解析 Body，支持模板表达式
+     * 解析 JSON 模板字符串为 Object
+     * 例如："{\"user\":{\"id\":\"{{ #dsInput.userId }}\"}}"
      */
-    private Object parseBody(Map<String, Object> bodyTemplate, VariableContext variableContext) {
-        if (bodyTemplate == null || bodyTemplate.isEmpty()) {
+    private Object parseJsonObject(String template, VariableContext variableContext) {
+        if (template == null || template.isEmpty()) {
             return null;
         }
-        return TEMPLATE_PARSER.parseObject(bodyTemplate, variableContext);
+
+        String resolved = parseStringTemplate(template, variableContext);
+        try {
+            return OBJECT_MAPPER.readValue(resolved, Object.class);
+        } catch (Exception e) {
+            throw new IllegalArgumentException("Failed to parse JSON object template: " + template, e);
+        }
+    }
+
+    /**
+     * 解析字符串模板
+     */
+    private String parseStringTemplate(String template, VariableContext variableContext) {
+        Object parsed = TEMPLATE_PARSER.parseTemplate(template, variableContext);
+        return parsed != null ? String.valueOf(parsed) : template;
     }
 }

@@ -1,18 +1,15 @@
 package com.zwtech.flow.domain.model.apiservice.r2dbc;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.zwtech.flow.domain.model.apidatasource.DatasourceId;
-import com.zwtech.flow.domain.model.apiservice.ApiService;
-import com.zwtech.flow.domain.model.apiservice.FieldBinding;
-import com.zwtech.flow.domain.model.apiservice.ServiceContract;
-import com.zwtech.flow.domain.model.apiservice.ServiceId;
-import com.zwtech.flow.domain.model.apiservice.ServiceMapping;
-import com.zwtech.flow.domain.model.apiservice.ServiceStatus;
+import com.zwtech.flow.domain.model.apiservice.*;
 import lombok.Data;
+import lombok.Getter;
+import lombok.Setter;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.relational.core.mapping.Column;
 import org.springframework.data.relational.core.mapping.Table;
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
 
 import java.time.Instant;
 import java.util.HashMap;
@@ -20,19 +17,21 @@ import java.util.Map;
 
 /**
  * ApiService 的持久化实体
- * 
+ *
  * 职责：在领域模型与数据库模型之间翻译语义
  * - 知道 JSONB 存储格式
  * - 知道表结构映射
  * - 知道复杂对象的序列化/反序列化
- * 
+ *
  * 领域模型完全不关心这些细节
  *
  * @author renc
  */
 @Data
+@Getter
+@Setter
 @Table("flw_api_service")
-class ApiServiceEntity {
+public class ApiServiceEntity {
 
     @Id
     @Column("id_")

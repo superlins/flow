@@ -9,10 +9,9 @@ import com.zwtech.flow.connector.specs.DatasourceSpecs;
 import com.zwtech.flow.connector.specs.HttpDatasourceSpecs;
 import com.zwtech.flow.core.VariableContext;
 import com.zwtech.flow.core.parser.spel.ExpressionContextParser;
+import com.zwtech.flow.domain.model.apidatasource.operation.HttpDatasourceOperation;
 import org.springframework.expression.EvaluationContext;
 import org.springframework.expression.spel.support.StandardEvaluationContext;
-
-import java.util.Map;
 
 /**
  * HTTP 响应转换器
@@ -37,32 +36,54 @@ public final class HttpResponseConverter
         return OBJECT_MAPPER.valueToTree(response.getBody());
     }
 
-    @Override
-    public JsonNode project(HttpResponseSpec response, DatasourceSpecs specs, VariableContext context) {
-        Map<String, String> outputMappings = specs.getOutputMappings();
+    public JsonNode project(HttpResponseSpec response, HttpDatasourceOperation operation, VariableContext context) {
         ObjectNode outputNode = OBJECT_MAPPER.createObjectNode();
+        String responseBodyTemplate = operation.responseBodyTemplate();
 
-        if (outputMappings != null && !outputMappings.isEmpty()) {
-            // 根据映射配置投影响应
-            outputMappings.forEach((outputKey, expression) -> {
-                if (expression != null) {
-                    Object value = evaluateSpel(expression, context);
-                    if (value instanceof JsonNode) {
-                        outputNode.set(outputKey, (JsonNode) value);
-                    } else if (value != null) {
-                        outputNode.putPOJO(outputKey, value);
-                    }
+        if (responseBodyTemplate != null && !responseBodyTemplate.isEmpty()) {
+            // 解析 JSON 模板字符串，提取字段映射
+            try {
+                JsonNode templateNode = OBJECT_MAPPER.readTree(responseBodyTemplate);
+                if (templateNode.isObject()) {
+                    templateNode.fields().forEachRemaining(entry -> {
+                        String outputKey = entry.getKey();
+                        String expression = entry.getValue().asText();
+
+                        if (expression != null && !expression.isEmpty()) {
+                            Object value = evaluateSpel(expression, context);
+                            if (value instanceof JsonNode) {
+                                outputNode.set(outputKey, (JsonNode) value);
+                            } else if (value != null) {
+                                outputNode.putPOJO(outputKey, value);
+                            }
+                        }
+                    });
                 }
-            });
+            } catch (Exception e) {
+                throw new IllegalArgumentException("Failed to parse responseBodyTemplate: " + responseBodyTemplate, e);
+            }
         } else {
             // 如果没有映射配置，直接使用响应体
             JsonNode bodyNode = response.getBody();
             if (bodyNode != null) {
-                outputNode.setAll((ObjectNode) bodyNode);
+                if (bodyNode.isObject()) {
+                    outputNode.setAll((ObjectNode) bodyNode);
+                } else {
+                    outputNode.setAll((ObjectNode) OBJECT_MAPPER.createObjectNode().set("data", bodyNode));
+                }
             }
         }
 
         return outputNode;
+    }
+
+    /**
+     * 兼容旧版本的 project 方法签名
+     */
+    @Override
+    public JsonNode project(HttpResponseSpec response, DatasourceSpecs specs, VariableContext context) {
+        var httpSpecs = (HttpDatasourceSpecs) specs;
+        return project(response, httpSpecs.getOperation(), context);
     }
 
     @Override

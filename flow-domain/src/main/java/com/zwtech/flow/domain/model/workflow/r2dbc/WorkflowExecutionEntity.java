@@ -8,6 +8,8 @@ import com.zwtech.flow.domain.model.workflow.WorkflowExecutionId;
 import com.zwtech.flow.domain.model.workflow.WorkflowExecutionStatus;
 import com.zwtech.flow.domain.model.workflow.WorkflowId;
 import lombok.Data;
+import lombok.Getter;
+import lombok.Setter;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.relational.core.mapping.Column;
 import org.springframework.data.relational.core.mapping.Table;
@@ -28,6 +30,8 @@ import java.util.Map;
  * @author renc
  */
 @Data
+@Getter
+@Setter
 @Table("flw_workflow_execution")
 public class WorkflowExecutionEntity {
 
@@ -202,6 +206,8 @@ public class WorkflowExecutionEntity {
      * 节点状态数据结构（用于 JSON 序列化）
      */
     @Data
+    @Getter
+    @Setter
     private static class NodeStatusData {
         private String nodeId;
         private String status;

@@ -3,8 +3,6 @@ package com.zwtech.flow.connector.specs;
 import com.zwtech.flow.domain.model.apidatasource.connection.DatasourceConnection;
 import com.zwtech.flow.domain.model.apidatasource.operation.DatasourceOperation;
 
-import java.util.Map;
-
 /**
  * 数据源规格接口
  * <p>
@@ -26,14 +24,6 @@ public interface DatasourceSpecs {
      * 定义执行的具体行为（HTTP method/path、SQL、CQL 等）
      */
     DatasourceOperation getOperation();
-
-    /**
-     * 获取映射配置
-     * 输入输出字段映射规则
-     */
-    Map<String, String> getInputMappings();
-
-    Map<String, String> getOutputMappings();
 
     /**
      * 获取数据源类型标识

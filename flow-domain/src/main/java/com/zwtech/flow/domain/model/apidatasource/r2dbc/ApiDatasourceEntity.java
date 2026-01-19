@@ -4,6 +4,8 @@ import com.zwtech.flow.domain.model.apidatasource.*;
 import com.zwtech.flow.domain.model.apidatasource.operation.DatasourceOperation;
 import com.zwtech.flow.domain.model.apidatasource.connection.DatasourceConnection;
 import lombok.Data;
+import lombok.Getter;
+import lombok.Setter;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.relational.core.mapping.Column;
 import org.springframework.data.relational.core.mapping.Table;
@@ -30,8 +32,10 @@ import java.util.Map;
  * @author renc
  */
 @Data
+@Getter
+@Setter
 @Table("flw_api_datasource")
-class ApiDatasourceEntity {
+public class ApiDatasourceEntity {
 
     @Id
     @Column("id_")

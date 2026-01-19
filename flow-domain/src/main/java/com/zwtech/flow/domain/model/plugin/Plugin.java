@@ -259,7 +259,7 @@ public final class Plugin implements AggregateRoot<Plugin> {
  */
 public record PluginId(String value) implements ValueObject<PluginId> {
     public PluginId {
-        this.value = Objects.requireNonNull(value, "PluginId value must not be null");
+        Objects.requireNonNull(value, "PluginId value must not be null");
         if (value.isBlank()) {
             throw new IllegalArgumentException("PluginId value must not be blank");
         }
@@ -345,57 +345,66 @@ public enum ScriptLanguage {
  * <p>
  * 根据插件类型不同，内容结构也不同
  */
-public sealed class PluginContent {
+public sealed interface PluginContent {
 
     /**
      * JAR 插件内容
      */
-    public record JarContent(
+    record JarContent(
             String jarPath,
             String pluginClassName
     ) implements PluginContent {
         public JarContent {
-            this.jarPath = Objects.requireNonNull(jarPath, "jarPath must not be null");
-            this.pluginClassName = Objects.requireNonNull(pluginClassName, "pluginClassName must not be null");
+            if (jarPath == null) {
+                throw new IllegalArgumentException("jarPath must not be null");
+            }
+            if (pluginClassName == null) {
+                throw new IllegalArgumentException("pluginClassName must not be null");
+            }
         }
     }
 
     /**
      * 脚本插件内容
      */
-    public record ScriptContent(
+    record ScriptContent(
             ScriptLanguage language,
             String scriptBody
     ) implements PluginContent {
         public ScriptContent {
-            this.language = Objects.requireNonNull(language, "language must not be null");
-            this.scriptBody = Objects.requireNonNull(scriptBody, "scriptBody must not be null");
+            if (language == null) {
+                throw new IllegalArgumentException("language must not be null");
+            }
+            if (scriptBody == null) {
+                throw new IllegalArgumentException("scriptBody must not be null");
+            }
         }
     }
 
     /**
      * 内联代码插件内容
      */
-    public record InlineContent(
+    record InlineContent(
             String code,
             String language
     ) implements PluginContent {
         public InlineContent {
-            this.code = Objects.requireNonNull(code, "code must not be null");
-            this.language = language;
+            if (code == null) {
+                throw new IllegalArgumentException("code must not be null");
+            }
         }
     }
 
     // 工厂方法
-    public static JarContent jar(String jarPath, String pluginClassName) {
+    static JarContent jar(String jarPath, String pluginClassName) {
         return new JarContent(jarPath, pluginClassName);
     }
 
-    public static ScriptContent script(ScriptLanguage language, String scriptBody) {
+    static ScriptContent script(ScriptLanguage language, String scriptBody) {
         return new ScriptContent(language, scriptBody);
     }
 
-    public static InlineContent inline(String code, String language) {
+    static InlineContent inline(String code, String language) {
         return new InlineContent(code, language);
     }
 }
