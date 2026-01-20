@@ -68,8 +68,8 @@ public class R2dbcConnectorFactory extends AbstractConnectorFactory<R2dbcRequest
             // 如果需要连接池，则创建 ConnectionPool
             if (connection.isPoolingEnabled()) {
                 ConnectionPoolConfiguration poolConfig = ConnectionPoolConfiguration.builder(connectionFactory)
-                        .maxIdleTime(Duration.ofMillis(connection.getMaxIdleTime()))
-                        .maxLifeTime(Duration.ofMillis(connection.getMaxLifetime()))
+                        .maxIdleTime(connection.getMaxIdleTime())
+                        .maxLifeTime(connection.getMaxLifetime())
                         .maxSize(connection.getMaxPoolSize())
                         .initialSize(connection.getInitialPoolSize())
                         .build();

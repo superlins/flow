@@ -3,20 +3,30 @@ import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import { workflowApi } from '../api/workflow';
 import { ConfirmDialog } from './ConfirmDialog';
 import { EditWorkflowModal } from './EditWorkflowModal';
-import { ViewWorkflowModal } from './ViewWorkflowModal';
+import { CreateWorkflowModal } from './CreateWorkflowModal';
+import { ExecuteWorkflowModal } from './ExecuteWorkflowModal';
+import { StatusBadge } from './common/StatusBadge';
+import { DataTable, type Column } from './common/DataTable';
 import type { Workflow } from '../types/workflow';
-import { Play, Archive, Power, PowerOff, Edit2, Trash2, Eye } from 'lucide-react';
+import { Play, Edit2, Trash2, Eye, Plus } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 interface WorkflowListProps {
   onExecute: (workflow: Workflow) => void;
 }
 
+// @ts-ignore
 export function WorkflowList({ onExecute }: WorkflowListProps) {
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
+
   const [selectedWorkflow, setSelectedWorkflow] = useState<Workflow | null>(null);
+
+  // Modals state
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [isExecuteModalOpen, setIsExecuteModalOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-  const [isViewModalOpen, setIsViewModalOpen] = useState(false);
   const [workflowToDelete, setWorkflowToDelete] = useState<Workflow | null>(null);
 
   const { data, isLoading, error } = useQuery({
@@ -33,17 +43,6 @@ export function WorkflowList({ onExecute }: WorkflowListProps) {
     },
   });
 
-  if (isLoading) return <div className="flex justify-center py-8"><span className="loading loading-spinner loading-lg"></span></div>;
-  if (error) return <div className="alert alert-error"><span>Error loading workflows: {error.message}</span></div>;
-  if (!data || data.workflows.length === 0) {
-    return (
-      <div className="alert">
-        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" className="stroke-info shrink-0 w-6 h-6"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-        <span>No workflows found. Create your first workflow to get started!</span>
-      </div>
-    );
-  }
-
   const handleStatusChange = async (key: string, version: number, action: 'enable' | 'disable' | 'archive') => {
     try {
       await workflowApi[action](key, version);
@@ -53,163 +52,146 @@ export function WorkflowList({ onExecute }: WorkflowListProps) {
     }
   };
 
-  const handleEdit = (workflow: Workflow) => {
-    setSelectedWorkflow(workflow);
-    setIsEditModalOpen(true);
+  const handleCreateSuccess = () => {
+    queryClient.invalidateQueries({ queryKey: ['workflows'] });
+    setIsCreateModalOpen(false);
   };
 
-  const handleDelete = (workflow: Workflow) => {
-    setWorkflowToDelete(workflow);
-    setIsDeleteDialogOpen(true);
-  };
+  const columns: Column<Workflow>[] = [
+    { key: 'name', header: 'Name', className: 'font-semibold' },
+    {
+      key: 'key',
+      header: 'Key',
+      className: 'font-mono text-xs opacity-70',
+      render: (wf) => <span className="font-mono">{wf.key}</span>
+    },
+    { key: 'version', header: 'Version', className: 'w-24 text-center' },
+    {
+      key: 'status',
+      header: 'Status',
+      className: 'w-32',
+      render: (wf) => <StatusBadge status={wf.status} />
+    },
+    {
+      key: 'actions',
+      header: 'Actions',
+      className: 'text-right min-w-[200px]',
+      render: (workflow) => (
+        <div className="join">
+          <button
+            className="btn btn-sm btn-ghost join-item tooltip"
+            data-tip="View Details"
+            onClick={(e) => { e.stopPropagation(); navigate(`/workflows/${workflow.key}/${workflow.version}`); }}
+          >
+            <Eye size={16} />
+          </button>
 
-  const handleView = (workflow: Workflow) => {
-    setSelectedWorkflow(workflow);
-    setIsViewModalOpen(true);
-  };
+          <button
+            className="btn btn-sm btn-ghost join-item tooltip"
+            data-tip="Edit"
+            onClick={(e) => { e.stopPropagation(); setSelectedWorkflow(workflow); setIsEditModalOpen(true); }}
+          >
+            <Edit2 size={16} />
+          </button>
 
-  const getStatusBadge = (status: string) => {
-    const config = {
-      'ENABLED': { class: 'badge-success', label: 'Enabled' },
-      'DISABLED': { class: 'badge-warning', label: 'Disabled' },
-      'ARCHIVED': { class: 'badge-ghost', label: 'Archived' },
-      'DRAFT': { class: 'badge-info', label: 'Draft' },
-    };
-    return config[status as keyof typeof config] || { class: 'badge-ghost', label: status };
-  };
+          {workflow.status === 'ENABLED' && (
+            <button
+              className="btn btn-sm btn-ghost text-success join-item tooltip"
+              data-tip="Execute"
+              onClick={(e) => { e.stopPropagation(); setSelectedWorkflow(workflow); setIsExecuteModalOpen(true); }}
+            >
+              <Play size={16} />
+            </button>
+          )}
+
+          {workflow.status === 'ARCHIVED' && (
+            <button
+              className="btn btn-sm btn-ghost text-error join-item tooltip"
+              data-tip="Delete"
+              onClick={(e) => { e.stopPropagation(); setWorkflowToDelete(workflow); setIsDeleteDialogOpen(true); }}
+            >
+              <Trash2 size={16} />
+            </button>
+          )}
+
+          <div className="dropdown dropdown-end join-item">
+            <div tabIndex={0} role="button" className="btn btn-sm btn-ghost">...</div>
+            <ul tabIndex={0} className="dropdown-content z-[1] menu p-2 shadow bg-base-100 rounded-box w-52">
+              {workflow.status === 'DISABLED' && (
+                <li><a onClick={(e) => { e.stopPropagation(); handleStatusChange(workflow.key, workflow.version, 'enable'); }}>Enable</a></li>
+              )}
+              {workflow.status === 'ENABLED' && (
+                <li><a onClick={(e) => { e.stopPropagation(); handleStatusChange(workflow.key, workflow.version, 'disable'); }}>Disable</a></li>
+              )}
+              {(workflow.status !== 'ARCHIVED') && (
+                <li><a onClick={(e) => { e.stopPropagation(); handleStatusChange(workflow.key, workflow.version, 'archive'); }}>Archive</a></li>
+              )}
+            </ul>
+          </div>
+        </div>
+      )
+    }
+  ];
+
+  if (error) return <div className="alert alert-error"><span>Error loading workflows: {error.message}</span></div>;
+
 
   return (
     <>
       <div className="space-y-4">
-        {data.workflows.map((workflow) => {
-        const statusBadge = getStatusBadge(workflow.status);
-        return (
-          <div key={workflow.id} className="card bg-base-100 shadow-xl hover:shadow-2xl transition-shadow">
-            <div className="card-body">
-              <div className="flex flex-col md:flex-row justify-between gap-4">
-                <div className="flex-1">
-                  <div className="flex items-center gap-3 mb-2">
-                    <h3 className="card-title">{workflow.name}</h3>
-                    <div className={`badge ${statusBadge.class} badge-outline`}>
-                      {statusBadge.label}
-                    </div>
-                  </div>
-                  <p className="text-sm text-base-content/70 mb-3">{workflow.description || 'No description'}</p>
-                  <div className="text-xs text-base-content/60 space-y-1">
-                    <div><span className="font-medium">Key:</span> {workflow.key}</div>
-                    <div><span className="font-medium">Version:</span> {workflow.version}</div>
-                    <div><span className="font-medium">Created:</span> {new Date(workflow.createdAt).toLocaleString()}</div>
-                  </div>
-                </div>
+        <div className="flex justify-between items-center">
+          <h2 className="text-xl font-bold">All Workflows</h2>
+          <button className="btn btn-primary gap-2" onClick={() => setIsCreateModalOpen(true)}>
+            <Plus size={20} /> New Workflow
+          </button>
+        </div>
 
-                <div className="flex flex-row md:flex-col gap-2">
-                  <button
-                    onClick={() => handleView(workflow)}
-                    className="btn btn-info gap-2 btn-sm"
-                  >
-                    <Eye size={16} />
-                    View
-                  </button>
-                  <button
-                    onClick={() => handleEdit(workflow)}
-                    className="btn btn-primary gap-2 btn-sm"
-                  >
-                    <Edit2 size={16} />
-                    Edit
-                  </button>
-                  {workflow.status === 'ENABLED' && (
-                    <button
-                      onClick={() => onExecute(workflow)}
-                      className="btn btn-success gap-2 btn-sm"
-                    >
-                      <Play size={16} />
-                      Execute
-                    </button>
-                  )}
-                  {workflow.status === 'DISABLED' && (
-                    <button
-                      onClick={() => handleStatusChange(workflow.key, workflow.version, 'enable')}
-                      className="btn btn-success gap-2 btn-sm"
-                    >
-                      <Power size={16} />
-                      Enable
-                    </button>
-                  )}
-                  {workflow.status === 'ENABLED' && (
-                    <button
-                      onClick={() => handleStatusChange(workflow.key, workflow.version, 'disable')}
-                      className="btn btn-warning gap-2 btn-sm"
-                    >
-                      <PowerOff size={16} />
-                      Disable
-                    </button>
-                  )}
-                  {(workflow.status === 'ENABLED' || workflow.status === 'DISABLED') && (
-                    <button
-                      onClick={() => handleStatusChange(workflow.key, workflow.version, 'archive')}
-                      className="btn btn-neutral gap-2 btn-sm"
-                    >
-                      <Archive size={16} />
-                      Archive
-                    </button>
-                  )}
-                  {workflow.status === 'ARCHIVED' && (
-                    <button
-                      onClick={() => handleDelete(workflow)}
-                      className="btn btn-error gap-2 btn-sm"
-                    >
-                      <Trash2 size={16} />
-                      Delete
-                    </button>
-                  )}
-                </div>
-              </div>
-            </div>
-          </div>
-        );
-      })}
-    </div>
+        <DataTable
+          data={data?.workflows || []}
+          columns={columns}
+          keyField={(wf) => `${wf.key}-${wf.version}`}
+          isLoading={isLoading}
+          emptyMessage="No workflows found."
+          onRowClick={(wf) => navigate(`/workflows/${wf.key}/${wf.version}`)}
+        />
+      </div>
 
-    <ViewWorkflowModal
-      isOpen={isViewModalOpen}
-      onClose={() => {
-        setIsViewModalOpen(false);
-        setSelectedWorkflow(null);
-      }}
-      workflow={selectedWorkflow}
-    />
+      <CreateWorkflowModal
+        isOpen={isCreateModalOpen}
+        onClose={() => setIsCreateModalOpen(false)}
+        onSuccess={handleCreateSuccess}
+      />
 
-    <EditWorkflowModal
-      isOpen={isEditModalOpen}
-      onClose={() => {
-        setIsEditModalOpen(false);
-        setSelectedWorkflow(null);
-      }}
-      onSuccess={() => {
-        queryClient.invalidateQueries({ queryKey: ['workflows'] });
-        setIsEditModalOpen(false);
-        setSelectedWorkflow(null);
-      }}
-      workflow={selectedWorkflow!}
-    />
+      <ExecuteWorkflowModal
+        isOpen={isExecuteModalOpen}
+        onClose={() => { setIsExecuteModalOpen(false); setSelectedWorkflow(null); }}
+        workflow={selectedWorkflow!} // Fix typing if possible, or assume checked before open
+      />
 
-    <ConfirmDialog
-      isOpen={isDeleteDialogOpen}
-      title="Delete Workflow"
-      message={`Are you sure you want to delete workflow "${workflowToDelete?.name}"? Only archived workflows can be deleted. This action cannot be undone.`}
-      confirmText="Delete"
-      cancelText="Cancel"
-      variant="danger"
-      onConfirm={() => {
-        if (workflowToDelete) {
-          deleteMutation.mutate(workflowToDelete);
-        }
-      }}
-      onCancel={() => {
-        setIsDeleteDialogOpen(false);
-        setWorkflowToDelete(null);
-      }}
-    />
-  </>
+      <EditWorkflowModal
+        isOpen={isEditModalOpen}
+        onClose={() => {
+          setIsEditModalOpen(false);
+          setSelectedWorkflow(null);
+        }}
+        onSuccess={() => {
+          queryClient.invalidateQueries({ queryKey: ['workflows'] });
+          setIsEditModalOpen(false);
+          setSelectedWorkflow(null);
+        }}
+        workflow={selectedWorkflow!}
+      />
+
+      <ConfirmDialog
+        isOpen={isDeleteDialogOpen}
+        title="Delete Workflow"
+        message={`Are you sure you want to delete workflow "${workflowToDelete?.name}"?`}
+        confirmText="Delete"
+        cancelText="Cancel"
+        variant="danger"
+        onConfirm={() => workflowToDelete && deleteMutation.mutate(workflowToDelete)}
+        onCancel={() => setIsDeleteDialogOpen(false)}
+      />
+    </>
   );
 }

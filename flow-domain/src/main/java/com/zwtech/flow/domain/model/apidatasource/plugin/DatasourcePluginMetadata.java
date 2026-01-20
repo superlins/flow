@@ -22,6 +22,24 @@ public class DatasourcePluginMetadata {
     private final java.util.List<DatasourceType> supportedTypes;
     private final Map<String, String> configSchema;
     private final boolean requiresAuth;
+    private final DatasourceType supportedType; // 单一类型（用于简化）
+
+    public DatasourcePluginMetadata(
+            String id,
+            String name,
+            String version,
+            String description,
+            DatasourceType supportedType) {
+        this.id = Objects.requireNonNull(id, "id must not be null");
+        this.name = Objects.requireNonNull(name, "name must not be null");
+        this.version = version != null ? version : "1.0.0";
+        this.description = description != null ? description : "";
+        this.author = "Unknown";
+        this.supportedTypes = supportedType != null ? java.util.List.of(supportedType) : java.util.List.of();
+        this.configSchema = Map.of();
+        this.requiresAuth = false;
+        this.supportedType = supportedType;
+    }
 
     public DatasourcePluginMetadata(
             String id,
@@ -40,6 +58,7 @@ public class DatasourcePluginMetadata {
         this.supportedTypes = java.util.List.copyOf(Objects.requireNonNull(supportedTypes, "supportedTypes must not be null"));
         this.configSchema = configSchema != null ? Map.copyOf(configSchema) : Map.of();
         this.requiresAuth = requiresAuth;
+        this.supportedType = supportedTypes.isEmpty() ? null : supportedTypes.get(0);
     }
 
     public String id() {
@@ -72,6 +91,19 @@ public class DatasourcePluginMetadata {
 
     public boolean requiresAuth() {
         return requiresAuth;
+    }
+
+    public DatasourceType supportedType() {
+        return supportedType;
+    }
+
+    // Alias methods for compatibility
+    public String pluginId() {
+        return id;
+    }
+
+    public String pluginName() {
+        return name;
     }
 
     @Override

@@ -20,4 +20,9 @@ interface ApiDatasourceEntityRepository extends ReactiveCrudRepository<ApiDataso
 
     @Query("SELECT * FROM flw_api_datasource ORDER BY updated_at_ DESC")
     Flux<ApiDatasourceEntity> findAllOrdered();
+
+    /**
+     * 根据 key 和 version 删除 Datasource
+     */
+    Mono<Void> deleteByKeyAndVersion(String key, int version);
 }

@@ -1,11 +1,11 @@
 package com.zwtech.flow.api.dto;
 
+import com.zwtech.flow.domain.model.apidatasource.plugin.DatasourcePlugin;
+import com.zwtech.flow.domain.model.apidatasource.plugin.DatasourcePluginMetadata;
 import com.zwtech.flow.domain.model.plugin.Plugin;
-import com.zwtech.flow.domain.model.plugin.PluginId;
-import com.zwtech.model.plugin.ScriptLanguage;
-import com.zwtech.model.plugin.PluginType;
-import com.zwtech.flow.domain.model.plugin.PluginStatus;
+import com.zwtech.flow.domain.model.plugin.PluginContent;
 import org.pf4j.PluginState;
+import org.pf4j.PluginWrapper;
 
 import java.time.Instant;
 import java.util.Map;
@@ -49,7 +49,7 @@ public record PluginDTO(
                     "language", script.language().getDisplayName(),
                     "scriptBody", script.scriptBody()
             );
-            case default -> Map.of("type", default.getClass().getSimpleName());
+            case PluginContent.InlineContent inline -> Map.of("code", inline.code(), "language", inline.language());
         };
 
         return new PluginDTO(
@@ -96,5 +96,53 @@ public record PluginDTO(
         }
 
         return dto;
+    }
+
+    /**
+     * 从 DatasourcePluginMetadata 创建 DTO
+     */
+    public static PluginDTO fromMetadata(DatasourcePluginMetadata metadata) {
+        return new PluginDTO(
+                metadata.pluginId(),
+                metadata.pluginName(),
+                metadata.version(),
+                metadata.description(),
+                null, // type
+                null, // status
+                null, // content
+                null, // config
+                null, // createdAt
+                null, // updatedAt
+                null, // enabledAt
+                null, // disabledAt
+                null, // runtimeStatus
+                null  // runtimePluginId
+        );
+    }
+
+    /**
+     * 从 DatasourcePlugin 创建 DTO
+     */
+    public static PluginDTO fromPlugin(DatasourcePlugin plugin) {
+        PluginWrapper wrapper = plugin.getWrapper();
+        String runtimeStatus = wrapper != null ? wrapper.getPluginState().name() : null;
+        String runtimePluginId = wrapper != null ? wrapper.getPluginId() : null;
+
+        return new PluginDTO(
+                plugin.getPluginId(),
+                plugin.getPluginName(),
+                null, // version
+                null, // description
+                null, // type
+                runtimeStatus,
+                null, // content
+                null, // config
+                null, // createdAt
+                null, // updatedAt
+                null, // enabledAt
+                null, // disabledAt
+                runtimeStatus,
+                runtimePluginId
+        );
     }
 }

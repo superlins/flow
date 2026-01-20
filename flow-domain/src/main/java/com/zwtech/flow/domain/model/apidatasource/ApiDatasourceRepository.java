@@ -17,4 +17,11 @@ public interface ApiDatasourceRepository {
     Mono<ApiDatasource> save(ApiDatasource datasource);
 
     Mono<Boolean> isReferenced(DatasourceId id);
+
+    /**
+     * 删除数据源
+     */
+    default Mono<Void> delete(DatasourceId id) {
+        throw new UnsupportedOperationException("Delete operation is not supported (DS-4 rule)");
+    }
 }

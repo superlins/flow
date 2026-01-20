@@ -4,9 +4,10 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.zwtech.flow.domain.model.apidatasource.DatasourceId;
 import com.zwtech.flow.domain.model.apiservice.*;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Data;
-import lombok.Getter;
-import lombok.Setter;
+import lombok.NoArgsConstructor;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.relational.core.mapping.Column;
 import org.springframework.data.relational.core.mapping.Table;
@@ -28,8 +29,9 @@ import java.util.Map;
  * @author renc
  */
 @Data
-@Getter
-@Setter
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
 @Table("flw_api_service")
 public class ApiServiceEntity {
 
@@ -77,32 +79,32 @@ public class ApiServiceEntity {
 
     /**
      * 将领域模型转换为持久化实体
-     * 
+     *
      * 注意：ServiceMapping 需要序列化为 JSON
      */
     public static ApiServiceEntity fromApiService(ApiService service) {
         var entity = new ApiServiceEntity();
-        
+
         // 标识
         entity.setKey(service.id().value());
-        
+
         // 基础信息
         entity.setName(service.name());
         entity.setDescription(service.description());
         entity.setStatus(service.status().name());
-        
+
         // 契约（JSON Schema 字符串）
         if (service.contract() != null) {
             entity.setInputSchema(service.contract().inputSchema());
             entity.setOutputSchema(service.contract().outputSchema());
         }
-        
+
         // Datasource 引用
         if (service.datasourceId() != null) {
             entity.setDatasourceKey(service.datasourceId().key());
             entity.setDatasourceVersion(service.datasourceId().version());
         }
-        
+
         // Mapping（序列化为 JSON）
         if (service.mapping() != null) {
             try {
@@ -127,31 +129,31 @@ public class ApiServiceEntity {
                 throw new RuntimeException("Failed to serialize ServiceMapping", e);
             }
         }
-        
+
         // 时间戳
         entity.setCreatedAt(service.createdAt());
         entity.setUpdatedAt(service.updatedAt());
-        
+
         return entity;
     }
 
     /**
      * 将持久化实体转换为领域模型
-     * 
+     *
      * 注意：需要反序列化 BindingSpec
      */
     public ApiService toApiService() {
         var serviceId = new ServiceId(this.key);
-        
+
         // 基础信息
         var status = ServiceStatus.valueOf(this.status);
-        
+
         // 契约
         var contract = new ServiceContract(inputSchema, outputSchema);
-        
+
         // Datasource 引用
         var datasourceId = new DatasourceId(datasourceKey, datasourceVersion);
-        
+
         // Mapping（反序列化）
         ServiceMapping mapping = ServiceMapping.empty();
         if (inputMapping != null && !inputMapping.isEmpty()) {
@@ -214,7 +216,7 @@ public class ApiServiceEntity {
                 throw new RuntimeException("Failed to deserialize ServiceMapping", e);
             }
         }
-        
+
         // 使用静态工厂方法恢复对象
         return ApiService.restore(
                 serviceId,
@@ -228,4 +230,3 @@ public class ApiServiceEntity {
         );
     }
 }
-

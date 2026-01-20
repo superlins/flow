@@ -1,47 +1,48 @@
 package com.zwtech.flow.domain.model.apiservice;
 
-import com.zwtech.flow.domain.shared.ValueObject;
-import org.springframework.util.Assert;
-
-import java.util.Objects;
+import com.zwtech.flow.domain.shared.Contract;
 
 /**
+ * Service 契约
+ * <p>
+ * 继承自 {@link Contract}，定义 ApiService 面向客户端的输入输出约束。
+ *
  * @author renc
  */
-public final class ServiceContract implements ValueObject<ServiceContract> {
-    private final String inputSchema;
-    private final String outputSchema;
+public final class ServiceContract extends Contract {
 
     public ServiceContract(String inputSchema, String outputSchema) {
-        Assert.hasText(inputSchema, "ApiService inputSchema must not be blank");
-        Assert.hasText(outputSchema, "ApiService outputSchema must not be blank");
-        this.inputSchema = inputSchema;
-        this.outputSchema = outputSchema;
+        super(inputSchema, outputSchema);
     }
 
-    public String inputSchema() {
-        return inputSchema;
-    }
-
-    public String outputSchema() {
-        return outputSchema;
+    /**
+     * 创建 ServiceContract
+     */
+    public static ServiceContract of(String inputSchema, String outputSchema) {
+        return new ServiceContract(inputSchema, outputSchema);
     }
 
     @Override
-    public boolean sameValueAs(ServiceContract other) {
-        return other != null
-               && inputSchema.equals(other.inputSchema)
-               && outputSchema.equals(other.outputSchema);
+    public boolean sameValueAs(Contract other) {
+        if (!super.sameValueAs(other)) {
+            return false;
+        }
+        return other instanceof ServiceContract;
     }
 
     @Override
     public boolean equals(Object o) {
-        return this == o || (o instanceof ServiceContract that && sameValueAs(that));
+        if (this == o)
+            return true;
+        if (o == null || getClass() != o.getClass())
+            return false;
+        ServiceContract that = (ServiceContract) o;
+        return sameValueAs(that);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(inputSchema, outputSchema);
+        return super.hashCode();
     }
 
     @Override

@@ -1,23 +1,20 @@
 package com.zwtech.flow.domain.model.workflow;
 
-import com.zwtech.flow.domain.shared.ValueObject;
-
-import java.util.Objects;
+import com.zwtech.flow.domain.shared.Contract;
 
 /**
  * 工作流契约
- * 描述工作流的输入输出要求（JSON Schema）
+ * <p>
+ * 继承自 {@link Contract}，描述工作流的输入输出要求（JSON Schema）。
+ * 支持空契约作为默认值。
  *
  * @author renc
  */
-public final class WorkflowContract implements ValueObject<WorkflowContract> {
-
-    private final String inputSchema;
-    private final String outputSchema;
+public final class WorkflowContract extends Contract {
 
     private WorkflowContract(String inputSchema, String outputSchema) {
-        this.inputSchema = inputSchema != null ? inputSchema : "{}";
-        this.outputSchema = outputSchema != null ? outputSchema : "{}";
+        super(inputSchema != null && !inputSchema.isEmpty() ? inputSchema : "{}",
+                outputSchema != null && !outputSchema.isEmpty() ? outputSchema : "{}");
     }
 
     /**
@@ -34,31 +31,26 @@ public final class WorkflowContract implements ValueObject<WorkflowContract> {
         return new WorkflowContract("{}", "{}");
     }
 
-    public String inputSchema() {
-        return inputSchema;
-    }
-
-    public String outputSchema() {
-        return outputSchema;
-    }
-
     @Override
-    public boolean sameValueAs(WorkflowContract other) {
-        if (other == null) return false;
-        return Objects.equals(inputSchema, other.inputSchema) &&
-                Objects.equals(outputSchema, other.outputSchema);
+    public boolean sameValueAs(Contract other) {
+        if (!super.sameValueAs(other)) {
+            return false;
+        }
+        return other instanceof WorkflowContract;
     }
 
     @Override
     public boolean equals(Object o) {
-        if (this == o) return true;
-        if (o == null || getClass() != o.getClass()) return false;
+        if (this == o)
+            return true;
+        if (o == null || getClass() != o.getClass())
+            return false;
         WorkflowContract that = (WorkflowContract) o;
         return sameValueAs(that);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(inputSchema, outputSchema);
+        return super.hashCode();
     }
 }

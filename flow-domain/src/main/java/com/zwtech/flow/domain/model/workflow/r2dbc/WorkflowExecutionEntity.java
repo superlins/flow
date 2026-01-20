@@ -7,9 +7,10 @@ import com.zwtech.flow.domain.model.workflow.WorkflowExecution;
 import com.zwtech.flow.domain.model.workflow.WorkflowExecutionId;
 import com.zwtech.flow.domain.model.workflow.WorkflowExecutionStatus;
 import com.zwtech.flow.domain.model.workflow.WorkflowId;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Data;
-import lombok.Getter;
-import lombok.Setter;
+import lombok.NoArgsConstructor;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.relational.core.mapping.Column;
 import org.springframework.data.relational.core.mapping.Table;
@@ -30,8 +31,9 @@ import java.util.Map;
  * @author renc
  */
 @Data
-@Getter
-@Setter
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
 @Table("flw_workflow_execution")
 public class WorkflowExecutionEntity {
 
@@ -107,13 +109,14 @@ public class WorkflowExecutionEntity {
         try {
             Map<String, NodeStatusData> nodeStatusDataMap = new HashMap<>();
             for (var entry : execution.nodeStatuses().entrySet()) {
-                NodeStatusData nodeStatusData = new NodeStatusData();
-                nodeStatusData.setNodeId(entry.getValue().nodeId());
-                nodeStatusData.setStatus(entry.getValue().status().name());
-                nodeStatusData.setOutput(entry.getValue().output() != null ?
-                        OBJECT_MAPPER.writeValueAsString(entry.getValue().output()) : null);
-                nodeStatusData.setStartedAt(entry.getValue().startedAt());
-                nodeStatusData.setCompletedAt(entry.getValue().completedAt());
+                NodeStatusData nodeStatusData = NodeStatusData.builder()
+                        .nodeId(entry.getValue().nodeId())
+                        .status(entry.getValue().status().name())
+                        .output(entry.getValue().output() != null ?
+                                OBJECT_MAPPER.writeValueAsString(entry.getValue().output()) : null)
+                        .startedAt(entry.getValue().startedAt())
+                        .completedAt(entry.getValue().completedAt())
+                        .build();
                 nodeStatusDataMap.put(entry.getKey(), nodeStatusData);
             }
             if (!nodeStatusDataMap.isEmpty()) {
@@ -134,15 +137,15 @@ public class WorkflowExecutionEntity {
      * 从持久化实体恢复领域模型
      */
     public WorkflowExecution toWorkflowExecution() {
-        WorkflowExecutionId executionId = WorkflowExecutionId.of(this.getExecutionId());
-        WorkflowId workflowId = WorkflowId.of(this.getWorkflowKey(), this.getWorkflowVersion());
-        WorkflowExecutionStatus status = WorkflowExecutionStatus.valueOf(this.getStatus());
+        WorkflowExecutionId executionId = WorkflowExecutionId.of(this.executionId);
+        WorkflowId workflowId = WorkflowId.of(this.workflowKey, this.workflowVersion);
+        WorkflowExecutionStatus status = WorkflowExecutionStatus.valueOf(this.status);
 
         // 反序列化输入
         JsonNode input = null;
-        if (this.getInput() != null && !this.getInput().isBlank()) {
+        if (this.input != null && !this.input.isBlank()) {
             try {
-                input = OBJECT_MAPPER.readTree(this.getInput());
+                input = OBJECT_MAPPER.readTree(this.input);
             } catch (Exception e) {
                 throw new RuntimeException("Failed to deserialize input", e);
             }
@@ -150,9 +153,9 @@ public class WorkflowExecutionEntity {
 
         // 反序列化输出
         JsonNode output = null;
-        if (this.getOutput() != null && !this.getOutput().isBlank()) {
+        if (this.output != null && !this.output.isBlank()) {
             try {
-                output = OBJECT_MAPPER.readTree(this.getOutput());
+                output = OBJECT_MAPPER.readTree(this.output);
             } catch (Exception e) {
                 throw new RuntimeException("Failed to deserialize output", e);
             }
@@ -160,22 +163,22 @@ public class WorkflowExecutionEntity {
 
         // 反序列化节点状态
         Map<String, WorkflowExecution.NodeExecutionStatus> nodeStatuses = new HashMap<>();
-        if (this.getNodeStatuses() != null && !this.getNodeStatuses().isBlank()) {
+        if (this.nodeStatuses != null && !this.nodeStatuses.isBlank()) {
             try {
-                Map<String, NodeStatusData> nodeStatusDataMap = OBJECT_MAPPER.readValue(this.getNodeStatuses(),
+                Map<String, NodeStatusData> nodeStatusDataMap = OBJECT_MAPPER.readValue(this.nodeStatuses,
                         new TypeReference<Map<String, NodeStatusData>>() {});
                 for (var entry : nodeStatusDataMap.entrySet()) {
                     JsonNode nodeOutput = null;
-                    if (entry.getValue().getOutput() != null && !entry.getValue().getOutput().isBlank()) {
-                        nodeOutput = OBJECT_MAPPER.readTree(entry.getValue().getOutput());
+                    if (entry.getValue().output != null && !entry.getValue().output.isBlank()) {
+                        nodeOutput = OBJECT_MAPPER.readTree(entry.getValue().output);
                     }
 
                     nodeStatuses.put(entry.getKey(), new WorkflowExecution.NodeExecutionStatus(
-                            entry.getValue().getNodeId(),
-                            WorkflowExecutionStatus.valueOf(entry.getValue().getStatus()),
+                            entry.getValue().nodeId,
+                            WorkflowExecutionStatus.valueOf(entry.getValue().status),
                             nodeOutput,
-                            entry.getValue().getStartedAt(),
-                            entry.getValue().getCompletedAt()
+                            entry.getValue().startedAt,
+                            entry.getValue().completedAt
                     ));
                 }
             } catch (Exception e) {
@@ -185,8 +188,8 @@ public class WorkflowExecutionEntity {
 
         // 计算持续时间
         Duration duration = null;
-        if (this.getDurationMs() != null) {
-            duration = Duration.ofMillis(this.getDurationMs());
+        if (this.durationMs != null) {
+            duration = Duration.ofMillis(this.durationMs);
         }
 
         return WorkflowExecution.restore(
@@ -195,10 +198,10 @@ public class WorkflowExecutionEntity {
                 status,
                 input,
                 output,
-                this.getErrorMessage(),
+                this.errorMessage,
                 nodeStatuses,
-                this.getStartedAt(),
-                this.getFinishedAt()
+                this.startedAt,
+                this.finishedAt
         );
     }
 
@@ -206,9 +209,10 @@ public class WorkflowExecutionEntity {
      * 节点状态数据结构（用于 JSON 序列化）
      */
     @Data
-    @Getter
-    @Setter
-    private static class NodeStatusData {
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class NodeStatusData {
         private String nodeId;
         private String status;
         private String output;

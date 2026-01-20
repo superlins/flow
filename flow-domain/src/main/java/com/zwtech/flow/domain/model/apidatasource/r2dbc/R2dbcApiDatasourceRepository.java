@@ -8,11 +8,9 @@ import org.springframework.stereotype.Repository;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
-import java.util.List;
-
 /**
  * ApiDatasource R2DBC Repository 实现
- * 
+ *
  * 职责：在领域模型与数据库模型之间翻译语义
  *
  * @author renc
@@ -54,11 +52,16 @@ public class R2dbcApiDatasourceRepository implements ApiDatasourceRepository {
                 .map(ApiDatasourceEntity::toApiDatasource);
     }
 
+    @Override
+    public Mono<Void> delete(DatasourceId id) {
+        return apiDatasourceEntityRepository.deleteByKeyAndVersion(id.key(), id.version());
+    }
+
     /**
      * 检查 Datasource 是否被 ApiService 引用
-     * 
+     *
      * 实现 DS-1 规则：被引用的 Datasource 不可修改核心字段
-     * 
+     *
      * 通过查询 ApiServiceRepository 来检查引用关系
      */
     @Override

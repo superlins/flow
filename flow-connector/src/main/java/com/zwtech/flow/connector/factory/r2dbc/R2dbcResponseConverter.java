@@ -11,8 +11,6 @@ import com.zwtech.flow.connector.specs.R2dbcDatasourceSpecs;
 import com.zwtech.flow.core.VariableContext;
 import com.zwtech.flow.core.parser.spel.ExpressionContextParser;
 import com.zwtech.flow.domain.model.apidatasource.operation.SqlDatasourceOperation;
-import org.springframework.expression.EvaluationContext;
-import org.springframework.expression.spel.support.StandardEvaluationContext;
 
 import java.util.List;
 import java.util.Map;
@@ -45,8 +43,8 @@ public final class R2dbcResponseConverter
     @Override
     public JsonNode project(R2dbcResponseSpec response, DatasourceSpecs specs, VariableContext context) {
         // 转换到具体类型
-        var httpSpecs = (R2dbcDatasourceSpecs) specs;
-        return project(response, httpSpecs.getOperation(), context);
+        var r2dbcSpecs = (R2dbcDatasourceSpecs) specs;
+        return project(response, r2dbcSpecs.getOperation(), context);
     }
 
     /**
@@ -101,13 +99,15 @@ public final class R2dbcResponseConverter
     private JsonNode projectSingleRow(JsonNode row, Map<String, String> outputMappings, VariableContext context) {
         ObjectNode outputNode = OBJECT_MAPPER.createObjectNode();
 
-        // 先添加原始行数据到上下文
-        VariableContext rowContext = context;
-        rowContext = rowContext.withVariable("row", row);
-
         outputMappings.forEach((outputKey, expression) -> {
             if (expression != null) {
-                Object value = evaluateSpel(expression, rowContext);
+                // 使用 rootObject 方式传递 row 变量
+                Map<String, Object> rootMap = new java.util.HashMap<>();
+                rootMap.put("row", row);
+                // 添加所有上下文变量
+                context.getVariables().forEach(rootMap::put);
+
+                Object value = evaluateSpel(expression, rootMap);
                 if (value instanceof JsonNode) {
                     outputNode.set(outputKey, (JsonNode) value);
                 } else if (value != null) {
@@ -122,27 +122,7 @@ public final class R2dbcResponseConverter
     /**
      * 使用 SpEL 解析器评估表达式
      */
-    private Object evaluateSpel(String expression, VariableContext context) {
-        EvaluationContext evaluationContext = buildEvaluationContext(context);
-        return SPEL_PARSER.parseValue(expression, evaluationContext);
-    }
-
-    /**
-     * 将 VariableContext 转换为 Spring SpEL 的 EvaluationContext
-     */
-    private EvaluationContext buildEvaluationContext(VariableContext context) {
-        StandardEvaluationContext evaluationContext = new StandardEvaluationContext();
-
-        // 注册根对象
-        evaluationContext.setRootObject(context);
-
-        // 注册常用变量
-        context.getRequest().ifPresent(request -> evaluationContext.setVariable("request", request));
-        context.getResponse().ifPresent(response -> evaluationContext.setVariable("response", response));
-
-        // 注册所有自定义变量
-        context.getVariables().forEach(evaluationContext::setVariable);
-
-        return evaluationContext;
+    private Object evaluateSpel(String expression, Map<String, Object> rootMap) {
+        return SPEL_PARSER.parseValue(expression, rootMap);
     }
 }

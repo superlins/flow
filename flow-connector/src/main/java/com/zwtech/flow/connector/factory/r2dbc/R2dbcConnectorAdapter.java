@@ -63,7 +63,7 @@ public class R2dbcConnectorAdapter
     }
 
     @Override
-    protected R2dbcRequestSpec toRequest(ExecutionExchange exchange, ApiDatasource datasource, R2dbcDatasourceSpecs specs) {
+    protected R2dbcRequestSpec toRequest(ExecutionExchange exchange, R2dbcDatasourceSpecs specs) {
         // 使用 Binder 绑定请求
         return requestBinder.bind(exchange, specs);
     }

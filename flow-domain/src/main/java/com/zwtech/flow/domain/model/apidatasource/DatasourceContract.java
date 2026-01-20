@@ -1,57 +1,64 @@
 package com.zwtech.flow.domain.model.apidatasource;
 
-import com.zwtech.flow.domain.shared.ValueObject;
-import org.springframework.util.Assert;
+import com.zwtech.flow.domain.shared.Contract;
+
+import java.util.Objects;
 
 /**
+ * Datasource 契约
+ * <p>
+ * 继承自 {@link Contract}，添加 strict 模式支持。
+ * strict=true 时，输入输出必须严格匹配 Schema。
+ *
  * @author renc
  */
-public final class DatasourceContract implements ValueObject<DatasourceContract> {
+public final class DatasourceContract extends Contract {
 
-    private final String inputSchema;
-    private final String outputSchema;
     private final boolean strict;
 
     public DatasourceContract(String inputSchema, String outputSchema, boolean strict) {
-        Assert.hasText(inputSchema, "inputSchema must not be empty");
-        Assert.hasText(outputSchema, "outputSchema must not be empty");
-        this.inputSchema = inputSchema;
-        this.outputSchema = outputSchema;
+        super(inputSchema, outputSchema);
         this.strict = strict;
     }
 
-    public String inputSchema() {
-        return inputSchema;
+    /**
+     * 创建非严格模式的契约
+     */
+    public static DatasourceContract of(String inputSchema, String outputSchema) {
+        return new DatasourceContract(inputSchema, outputSchema, false);
     }
 
-    public String outputSchema() {
-        return outputSchema;
-    }
-
+    /**
+     * 是否为严格模式
+     */
     public boolean strict() {
         return strict;
     }
 
     @Override
-    public boolean sameValueAs(DatasourceContract other) {
-        return other != null && strict == other.strict && inputSchema.equals(other.inputSchema) && outputSchema.equals(other.outputSchema);
+    public boolean sameValueAs(Contract other) {
+        if (!super.sameValueAs(other)) {
+            return false;
+        }
+        if (!(other instanceof DatasourceContract that)) {
+            return false;
+        }
+        return strict == that.strict;
     }
 
     @Override
     public boolean equals(Object o) {
+        if (this == o)
+            return true;
         if (o == null || getClass() != o.getClass())
             return false;
-
         DatasourceContract that = (DatasourceContract) o;
         return sameValueAs(that);
     }
 
     @Override
     public int hashCode() {
-        int result = inputSchema.hashCode();
-        result = 31 * result + outputSchema.hashCode();
-        result = 31 * result + Boolean.hashCode(strict);
-        return result;
+        return Objects.hash(super.hashCode(), strict);
     }
 
     @Override
@@ -61,14 +68,14 @@ public final class DatasourceContract implements ValueObject<DatasourceContract>
 
     /* Helper methods for updating individual fields */
     public DatasourceContract withInputSchema(String inputSchema) {
-        return new DatasourceContract(inputSchema, this.outputSchema, this.strict);
+        return new DatasourceContract(inputSchema, outputSchema(), this.strict);
     }
 
     public DatasourceContract withOutputSchema(String outputSchema) {
-        return new DatasourceContract(this.inputSchema, outputSchema, this.strict);
+        return new DatasourceContract(inputSchema(), outputSchema, this.strict);
     }
 
     public DatasourceContract withStrict(boolean strict) {
-        return new DatasourceContract(this.inputSchema, this.outputSchema, strict);
+        return new DatasourceContract(inputSchema(), outputSchema(), strict);
     }
 }

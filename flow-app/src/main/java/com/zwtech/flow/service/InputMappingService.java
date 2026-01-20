@@ -1,23 +1,22 @@
-package com.zwtech.flow.domain.service;
+package com.zwtech.flow.service;
 
-import com.zwtech.flow.core.DefaultVariableContext;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.zwtech.flow.core.VariableContext;
 import com.zwtech.flow.core.parser.spel.EmbeddedContextExpressionParser;
 import com.zwtech.flow.core.parser.spel.ExpressionContextParser;
 import com.zwtech.flow.domain.model.apiservice.FieldBinding;
 import com.zwtech.flow.domain.model.apiservice.ServiceMapping;
 import org.springframework.stereotype.Service;
-import tools.jackson.databind.JsonNode;
-import tools.jackson.databind.ObjectMapper;
-import tools.jackson.databind.node.ObjectNode;
 
 import java.util.Map;
 
 /**
  * InputMappingService
- * 
+ *
  * 负责将 ApiService 的输入映射到 Datasource 的输入
- * 
+ *
  * 执行流程：
  * 1. 创建变量上下文（包含 #serviceInput, #env）
  * 2. 遍历 ServiceMapping.inputMapping
@@ -38,7 +37,7 @@ public class InputMappingService {
 
     /**
      * 执行输入映射
-     * 
+     *
      * @param serviceInput ApiService 的输入（已通过 ServiceContract.inputSchema 校验）
      * @param mapping ServiceMapping（包含 inputMapping 规则）
      * @param env 环境变量（可选）
@@ -60,10 +59,10 @@ public class InputMappingService {
         for (Map.Entry<String, FieldBinding> entry : mapping.inputMapping().entrySet()) {
             String targetField = entry.getKey();
             FieldBinding binding = entry.getValue();
-            
+
             // 解析表达式
-            Object value = parseExpression(binding.expression(), variableContext);
-            
+            Object value = parseExpression(binding.expression(), variableContext, env);
+
             // 设置到输出对象
             setJsonNodeValue(dsInput, targetField, value);
         }
@@ -75,23 +74,23 @@ public class InputMappingService {
      * 创建变量上下文
      */
     private VariableContext createVariableContext(JsonNode serviceInput, JsonNode env) {
-        DefaultVariableContext context = new DefaultVariableContext(serviceInput, null, null, null, null);
-        if (env != null) {
-            context.getEvaluationContext().setVariable("env", env);
-        }
-        return context;
+        return new com.zwtech.flow.core.DefaultVariableContext(serviceInput, null);
     }
 
     /**
      * 解析 SpEL 表达式
      */
-    private Object parseExpression(String expression, VariableContext variableContext) {
-        if (variableContext instanceof DefaultVariableContext) {
-            DefaultVariableContext defaultContext = (DefaultVariableContext) variableContext;
-            return expressionParser.parseValue(expression, defaultContext.getEvaluationContext());
+    private Object parseExpression(String expression, VariableContext variableContext, JsonNode env) {
+        // Use #serviceInput and #env as root objects
+        Map<String, Object> rootMap = new java.util.HashMap<>();
+        rootMap.put("serviceInput", variableContext.getRequest().orElse(null));
+        rootMap.put("env", env);
+
+        try {
+            return expressionParser.parseValue(expression, rootMap);
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to parse expression: " + expression, e);
         }
-        // 降级处理
-        return expressionParser.parseValue(expression);
     }
 
     /**
@@ -103,13 +102,13 @@ public class InputMappingService {
             String[] parts = fieldPath.split("\\.", 2);
             String parent = parts[0];
             String child = parts[1];
-            
+
             JsonNode parentNode = node.get(parent);
             if (parentNode == null || !parentNode.isObject()) {
                 parentNode = OBJECT_MAPPER.createObjectNode();
                 node.set(parent, parentNode);
             }
-            
+
             setJsonNodeValue((ObjectNode) parentNode, child, value);
         } else {
             // 直接设置

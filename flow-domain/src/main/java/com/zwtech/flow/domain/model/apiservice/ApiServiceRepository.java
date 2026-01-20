@@ -6,7 +6,7 @@ import reactor.core.publisher.Mono;
 
 /**
  * ApiService Repository 接口
- * 
+ *
  * 职责：提供领域模型的持久化抽象
  *
  * @author renc
@@ -38,4 +38,9 @@ public interface ApiServiceRepository {
      * 检查是否存在引用指定 Datasource 的 Service
      */
     Mono<Boolean> existsByDatasourceId(DatasourceId datasourceId);
+
+    /**
+     * 删除服务
+     */
+    Mono<Void> delete(ServiceId id);
 }

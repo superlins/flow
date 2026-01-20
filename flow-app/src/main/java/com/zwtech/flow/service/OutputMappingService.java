@@ -1,23 +1,21 @@
-package com.zwtech.flow.domain.service;
+package com.zwtech.flow.service;
 
-import com.zwtech.flow.core.DefaultVariableContext;
-import com.zwtech.flow.core.VariableContext;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.zwtech.flow.core.parser.spel.EmbeddedContextExpressionParser;
 import com.zwtech.flow.core.parser.spel.ExpressionContextParser;
 import com.zwtech.flow.domain.model.apiservice.FieldBinding;
 import com.zwtech.flow.domain.model.apiservice.ServiceMapping;
 import org.springframework.stereotype.Service;
-import tools.jackson.databind.JsonNode;
-import tools.jackson.databind.ObjectMapper;
-import tools.jackson.databind.node.ObjectNode;
 
 import java.util.Map;
 
 /**
  * OutputMappingService
- * 
+ *
  * 负责将 Datasource 的输出映射到 ApiService 的输出
- * 
+ *
  * 执行流程：
  * 1. 创建变量上下文（包含 #serviceInput, #dsInput, #dsOutput, #req, #resp）
  * 2. 遍历 ServiceMapping.outputMapping
@@ -38,7 +36,7 @@ public class OutputMappingService {
 
     /**
      * 执行输出映射
-     * 
+     *
      * @param serviceInput ApiService 的原始输入
      * @param dsInput Datasource 的输入（经过 input mapping 后）
      * @param dsOutput Datasource 的输出
@@ -54,9 +52,6 @@ public class OutputMappingService {
             return dsOutput != null ? dsOutput : OBJECT_MAPPER.createObjectNode();
         }
 
-        // 创建变量上下文
-        VariableContext variableContext = createVariableContext(serviceInput, dsInput, dsOutput, req, resp);
-
         // 构建输出对象
         ObjectNode serviceOutput = OBJECT_MAPPER.createObjectNode();
 
@@ -64,10 +59,11 @@ public class OutputMappingService {
         for (Map.Entry<String, FieldBinding> entry : mapping.outputMapping().entrySet()) {
             String targetField = entry.getKey();
             FieldBinding binding = entry.getValue();
-            
+
             // 解析表达式
-            Object value = parseExpression(binding.expression(), variableContext);
-            
+            Map<String, Object> rootMap = createRootMap(serviceInput, dsInput, dsOutput, req, resp);
+            Object value = parseExpression(binding.expression(), rootMap);
+
             // 设置到输出对象
             setJsonNodeValue(serviceOutput, targetField, value);
         }
@@ -76,23 +72,28 @@ public class OutputMappingService {
     }
 
     /**
-     * 创建变量上下文
+     * 创建变量映射（作为 SpEL 解析的 root）
      */
-    private VariableContext createVariableContext(JsonNode serviceInput, JsonNode dsInput, 
-                                                   JsonNode dsOutput, Object req, Object resp) {
-        return new DefaultVariableContext(serviceInput, dsInput, dsOutput, req, resp);
+    private Map<String, Object> createRootMap(JsonNode serviceInput, JsonNode dsInput,
+                                               JsonNode dsOutput, Object req, Object resp) {
+        Map<String, Object> rootMap = new java.util.HashMap<>();
+        rootMap.put("serviceInput", serviceInput);
+        rootMap.put("dsInput", dsInput);
+        rootMap.put("dsOutput", dsOutput);
+        rootMap.put("req", req);
+        rootMap.put("resp", resp);
+        return rootMap;
     }
 
     /**
      * 解析 SpEL 表达式
      */
-    private Object parseExpression(String expression, VariableContext variableContext) {
-        if (variableContext instanceof DefaultVariableContext) {
-            DefaultVariableContext defaultContext = (DefaultVariableContext) variableContext;
-            return expressionParser.parseValue(expression, defaultContext.getEvaluationContext());
+    private Object parseExpression(String expression, Map<String, Object> rootMap) {
+        try {
+            return expressionParser.parseValue(expression, rootMap);
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to parse expression: " + expression, e);
         }
-        // 降级处理
-        return expressionParser.parseValue(expression);
     }
 
     /**
@@ -104,13 +105,13 @@ public class OutputMappingService {
             String[] parts = fieldPath.split("\\.", 2);
             String parent = parts[0];
             String child = parts[1];
-            
+
             JsonNode parentNode = node.get(parent);
             if (parentNode == null || !parentNode.isObject()) {
                 parentNode = OBJECT_MAPPER.createObjectNode();
                 node.set(parent, parentNode);
             }
-            
+
             setJsonNodeValue((ObjectNode) parentNode, child, value);
         } else {
             // 直接设置

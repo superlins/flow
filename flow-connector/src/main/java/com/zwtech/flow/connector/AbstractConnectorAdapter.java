@@ -27,22 +27,22 @@ import java.util.List;
  * <p>
  * 核心数据流：
  * <ul>
- *   <li>运行时数据：ExecutionExchange.getRequest()</li>
- *   <li>静态配置：ApiDatasource (connection, operation, mappings)</li>
- *   <li>执行规格：SPECS (connection, operation)</li>
- *   <li>执行请求：REQ (基于运行时 + 静态配置构建)</li>
- *   <li>执行响应：RESP (原始响应数据)</li>
- *   <li>输出数据：ExecutionExchange.getResponse() (基于 RESP + mappings 提取)</li>
+ * <li>运行时数据：ExecutionExchange.getRequest()</li>
+ * <li>静态配置：ApiDatasource (connection, operation, mappings)</li>
+ * <li>执行规格：SPECS (connection, operation)</li>
+ * <li>执行请求：REQ (基于运行时 + 静态配置构建)</li>
+ * <li>执行响应：RESP (原始响应数据)</li>
+ * <li>输出数据：ExecutionExchange.getResponse() (基于 RESP + mappings 提取)</li>
  * </ul>
  * <p>
  * 标准执行流程：
  * <ol>
- *   <li>类型转换和请求绑定（调用 toRequest 钩子 - 需要运行时 + 静态配置）</li>
- *   <li>输入校验（基类统一处理）</li>
- *   <li>构建 FilterChain 和 Envelope（基类统一处理）</li>
- *   <li>执行 Connector + Filter（基类统一处理）</li>
- *   <li>响应转换和字段映射（调用 convertResponse 钩子 - 需要 RESP + mappings 提取）</li>
- *   <li>输出校验（基类统一处理）</li>
+ * <li>类型转换和请求绑定（调用 toRequest 钩子 - 需要运行时 + 静态配置）</li>
+ * <li>输入校验（基类统一处理）</li>
+ * <li>构建 FilterChain 和 Envelope（基类统一处理）</li>
+ * <li>执行 Connector + Filter（基类统一处理）</li>
+ * <li>响应转换和字段映射（调用 convertResponse 钩子 - 需要 RESP + mappings 提取）</li>
+ * <li>输出校验（基类统一处理）</li>
  * </ol>
  *
  * @param <REQ   extends RequestSpec> RequestSpec 类型
@@ -50,11 +50,8 @@ import java.util.List;
  * @param <SPECS extends DatasourceSpecs> DatasourceSpecs 类型
  * @author renc
  */
-public abstract class AbstractConnectorAdapter<
-    REQ extends RequestSpec,
-    RESP extends ResponseSpec,
-    SPECS extends DatasourceSpecs
-> implements ConnectorAdapter {
+public abstract class AbstractConnectorAdapter<REQ extends RequestSpec, RESP extends ResponseSpec, SPECS extends DatasourceSpecs>
+        implements ConnectorAdapter {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(AbstractConnectorAdapter.class);
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
@@ -156,7 +153,8 @@ public abstract class AbstractConnectorAdapter<
      * - 从 ApiDatasource 获取 outputMappings
      * - 使用 outputMappings 提取/映射响应字段
      */
-    protected JsonNode convertResponse(RESP response, ExecutionExchange exchange, ApiDatasource datasource, SPECS specs) {
+    protected JsonNode convertResponse(RESP response, ExecutionExchange exchange, ApiDatasource datasource,
+            SPECS specs) {
         // 默认实现：简单的序列化
         return OBJECT_MAPPER.valueToTree(response);
     }
@@ -171,8 +169,14 @@ public abstract class AbstractConnectorAdapter<
 
     /**
      * 子类可选重写：从 ApiDatasource 获取 DatasourceSpecs
-     * 默认调用 SpecsConverter.toSpecs，子类可以直接调用 Specs.from(datasource)
+     * <p>
+     * 推荐子类直接调用具体的 Specs.from(datasource) 方法，
+     * 或注入 {@link com.zwtech.flow.connector.specs.DatasourceSpecsRegistry} 使用 SPI
+     * 机制。
+     * <p>
+     * 默认实现使用已弃用的 SpecsConverter（将在未来版本移除）。
      */
+    @SuppressWarnings("deprecation")
     protected DatasourceSpecs getSpecs(ApiDatasource datasource) {
         return com.zwtech.flow.connector.specs.SpecsConverter.toSpecs(datasource);
     }
@@ -185,8 +189,7 @@ public abstract class AbstractConnectorAdapter<
 
         // 1. 添加 GlobalFilters
         List<GlobalFilter> globalFilters = new ArrayList<>(
-                applicationContext.getBeansOfType(GlobalFilter.class).values()
-        );
+                applicationContext.getBeansOfType(GlobalFilter.class).values());
         globalFilters.sort(OrderComparator.INSTANCE);
 
         for (GlobalFilter globalFilter : globalFilters) {

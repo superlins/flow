@@ -1,0 +1,72 @@
+-- =========================================
+-- Flow Domain Model Migration V2
+-- MappingSpec Support for Operations
+-- =========================================
+-- 
+-- 本次迁移支持 HttpDatasourceOperation 和 SqlDatasourceOperation
+-- 的新增 MappingSpec 字段。
+--
+-- 注意：不需要修改数据库表结构！
+-- OPERATION_ 列存储 JSON，新字段会自动作为 JSON 属性被序列化。
+--
+-- 兼容性说明：
+-- 1. 旧数据（只有 *Template 字段）仍然可以正常工作
+-- 2. 新数据可以选择使用 *Mappings 字段或 *Template 字段
+-- 3. useStructuredMappings() 方法可以判断使用哪种模式
+--
+-- JSON 格式变化示例：
+--
+-- 旧格式 (HttpDatasourceOperation):
+-- {
+--   "url": "https://api.example.com/users/{{ #dsInput.userId }}",
+--   "method": "GET",
+--   "headersTemplate": "{\"Authorization\":\"Bearer {{ #dsInput.token }}\"}",
+--   "queryParamsTemplate": "{\"limit\":\"10\"}",
+--   "bodyTemplate": null,
+--   "responseBodyTemplate": "{\"userId\":\"{{ #resp.id }}\",\"name\":\"{{ #resp.name }}\"}"
+-- }
+--
+-- 新格式 (HttpDatasourceOperation with MappingSpec):
+-- {
+--   "url": "https://api.example.com/users/{{ #dsInput.userId }}",
+--   "method": "GET",
+--   "headersTemplate": null,
+--   "queryParamsTemplate": null,
+--   "bodyTemplate": null,
+--   "responseBodyTemplate": null,
+--   "headersMappings": {
+--     "fieldMappings": {
+--       "Authorization": "#dsInput.token"
+--     }
+--   },
+--   "queryParamsMappings": {
+--     "fieldMappings": {
+--       "limit": "10"
+--     }
+--   },
+--   "bodyMappings": null,
+--   "responseMappings": {
+--     "fieldMappings": {
+--       "userId": "#resp.id",
+--       "name": "#resp.name"
+--     }
+--   }
+-- }
+--
+-- 混合格式（向后兼容）：
+-- 可以同时存在 *Template 和 *Mappings 字段，
+-- 但 useStructuredMappings() 会优先使用 *Mappings 字段。
+--
+-- =========================================
+-- 无需执行 DDL 语句
+-- =========================================
+
+
+-- 如果需要验证旧数据是否可以正常反序列化，可以使用以下查询：
+-- SELECT key_, version_, type_, operation_ 
+-- FROM flw_api_datasource 
+-- WHERE type_ = 'HTTP';
+
+
+-- 如果需要将旧数据迁移到新格式（可选），可以使用应用层脚本
+-- 或者通过 API 逐个更新 Datasource

@@ -23,7 +23,7 @@ import java.nio.file.Paths;
  * @author renc
  */
 @Configuration
-@ConditionalOnProperty(name = "flow.plugins.enabled", havingValue = "true", matchIfMissing = false)
+@ConditionalOnProperty(name = "flow.plugins.enabled", havingValue = "true", matchIfMissing = true)
 public class PluginConfig {
 
     private static final Logger logger = LoggerFactory.getLogger(PluginConfig.class);

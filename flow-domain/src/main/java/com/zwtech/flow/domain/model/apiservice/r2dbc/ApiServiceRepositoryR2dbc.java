@@ -45,8 +45,8 @@ public class ApiServiceRepositoryR2dbc implements ApiServiceRepository {
     @Override
     public Flux<ApiService> findByDatasourceId(DatasourceId datasourceId) {
         return apiServiceEntityRepository.findByDatasourceKeyAndVersion(
-                        datasourceId.key(), 
-                        datasourceId.version())
+                datasourceId.key(),
+                datasourceId.version())
                 .map(ApiServiceEntity::toApiService);
     }
 
@@ -55,5 +55,10 @@ public class ApiServiceRepositoryR2dbc implements ApiServiceRepository {
         return apiServiceEntityRepository.existsByDatasourceKeyAndVersion(
                 datasourceId.key(),
                 datasourceId.version());
+    }
+
+    @Override
+    public Mono<Void> delete(ServiceId id) {
+        return apiServiceEntityRepository.deleteByKey(id.value());
     }
 }

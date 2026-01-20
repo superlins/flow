@@ -2,6 +2,7 @@ package com.zwtech.flow.domain.model.plugin.repository;
 
 import com.zwtech.flow.domain.model.plugin.Plugin;
 import com.zwtech.flow.domain.model.plugin.PluginId;
+import com.zwtech.flow.domain.model.plugin.PluginStatus;
 
 import java.util.List;
 import java.util.Optional;
