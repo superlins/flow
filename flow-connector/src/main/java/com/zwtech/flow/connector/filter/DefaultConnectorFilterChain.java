@@ -11,7 +11,8 @@ import java.util.List;
 /**
  * @author renc
  */
-public class DefaultConnectorFilterChain<REQ extends RequestSpec, RESP extends ResponseSpec> implements ConnectorFilterChain {
+public class DefaultConnectorFilterChain<REQ extends RequestSpec, RESP extends ResponseSpec>
+        implements ConnectorFilterChain<REQ, RESP> {
 
     private final List<ConnectorFilter<REQ, RESP>> filters;
     private final int index;
@@ -23,7 +24,8 @@ public class DefaultConnectorFilterChain<REQ extends RequestSpec, RESP extends R
         this.index = 0;
     }
 
-    private DefaultConnectorFilterChain(Connector<REQ, RESP> connector, DefaultConnectorFilterChain<REQ, RESP> parent, int index) {
+    private DefaultConnectorFilterChain(Connector<REQ, RESP> connector, DefaultConnectorFilterChain<REQ, RESP> parent,
+            int index) {
         this.connector = connector;
         this.filters = parent.getFilters();
         this.index = index;
@@ -34,15 +36,14 @@ public class DefaultConnectorFilterChain<REQ extends RequestSpec, RESP extends R
     }
 
     @Override
-    public <REQ extends RequestSpec, RESP extends ResponseSpec> Mono<ExecutionEnvelope<REQ, RESP>> filter(ExecutionEnvelope<REQ, RESP> envelope) {
-        return Mono.defer(() -> filterInternal((ExecutionEnvelope) envelope));
+    public Mono<ExecutionEnvelope<REQ, RESP>> filter(ExecutionEnvelope<REQ, RESP> envelope) {
+        return Mono.defer(() -> filterInternal(envelope));
     }
 
-    @SuppressWarnings({"unchecked", "rawtypes"})
     private Mono<ExecutionEnvelope<REQ, RESP>> filterInternal(ExecutionEnvelope<REQ, RESP> envelope) {
         if (index < filters.size()) {
-            ConnectorFilter<REQ, RESP> filter = (ConnectorFilter<REQ, RESP>) filters.get(index);
-            return filter.filter(envelope, new DefaultConnectorFilterChain(this.connector, this, this.index + 1));
+            ConnectorFilter<REQ, RESP> filter = filters.get(index);
+            return filter.filter(envelope, new DefaultConnectorFilterChain<>(this.connector, this, this.index + 1));
         }
         return connector.connect(envelope.requestSpec(), envelope.attributes())
                 .map(envelope::withResponseSpec);

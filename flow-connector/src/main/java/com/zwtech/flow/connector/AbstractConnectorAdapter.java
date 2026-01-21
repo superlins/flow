@@ -92,7 +92,7 @@ public abstract class AbstractConnectorAdapter<REQ extends RequestSpec, RESP ext
 
         // 4. 构建 FilterChain（基类统一处理）
         List<ConnectorFilter<REQ, RESP>> filters = buildFilters(datasource);
-        ConnectorFilterChain chain = new DefaultConnectorFilterChain<>(connector, filters);
+        ConnectorFilterChain<REQ, RESP> chain = new DefaultConnectorFilterChain<>(connector, filters);
 
         // 5. 构建 Envelope（基类统一处理）
         ExecutionEnvelope<REQ, RESP> envelope = buildEnvelope(request);

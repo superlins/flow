@@ -40,12 +40,12 @@ public class MetricsFilter<REQ extends RequestSpec, RESP extends ResponseSpec>
     }
 
     @Override
-    public Mono<ExecutionEnvelope<REQ, RESP>> filter(ExecutionEnvelope<REQ, RESP> envelope, ConnectorFilterChain chain) {
+    public Mono<ExecutionEnvelope<REQ, RESP>> filter(ExecutionEnvelope<REQ, RESP> envelope,
+            ConnectorFilterChain<REQ, RESP> chain) {
         // 记录开始时间
         long startTime = System.currentTimeMillis();
         ExecutionEnvelope<REQ, RESP> envelopeWithAttrs = envelope.withAttributes(
-            envelope.attributes().with(REQUEST_START_TIME_ATTR, startTime)
-        );
+                envelope.attributes().with(REQUEST_START_TIME_ATTR, startTime));
 
         // 获取 Connector 类型
         String connectorType = getConnectorType(envelope.requestSpec());
@@ -54,11 +54,11 @@ public class MetricsFilter<REQ extends RequestSpec, RESP extends ResponseSpec>
         incrementActiveRequests(connectorType);
 
         return chain.filter(envelopeWithAttrs)
-            .doOnSuccess(successEnvelope -> recordSuccess(successEnvelope, connectorType, startTime))
-            .doOnError(error -> recordError(connectorType, startTime, error))
-            .doFinally(signal -> decrementActiveRequests(connectorType))
-            // 出错时仍返回，让链继续传播
-            .onErrorResume(error -> Mono.just(envelopeWithAttrs));
+                .doOnSuccess(successEnvelope -> recordSuccess(successEnvelope, connectorType, startTime))
+                .doOnError(error -> recordError(connectorType, startTime, error))
+                .doFinally(signal -> decrementActiveRequests(connectorType))
+                // 出错时仍返回，让链继续传播
+                .onErrorResume(error -> Mono.just(envelopeWithAttrs));
     }
 
     /**
@@ -69,17 +69,17 @@ public class MetricsFilter<REQ extends RequestSpec, RESP extends ResponseSpec>
 
         // 记录请求计数
         Counter.builder("connector.requests.total")
-            .tag("connector", connectorType)
-            .tag("status", "success")
-            .register(meterRegistry)
-            .increment();
+                .tag("connector", connectorType)
+                .tag("status", "success")
+                .register(meterRegistry)
+                .increment();
 
         // 记录响应时间
         Timer.builder("connector.requests.duration")
-            .tag("connector", connectorType)
-            .description("Connector request duration")
-            .register(meterRegistry)
-            .record(duration, java.util.concurrent.TimeUnit.MILLISECONDS);
+                .tag("connector", connectorType)
+                .description("Connector request duration")
+                .register(meterRegistry)
+                .record(duration, java.util.concurrent.TimeUnit.MILLISECONDS);
 
         if (log.isDebugEnabled()) {
             log.debug("Metrics: Request to {} succeeded in {}ms", connectorType, duration);
@@ -95,22 +95,22 @@ public class MetricsFilter<REQ extends RequestSpec, RESP extends ResponseSpec>
 
         // 记录错误计数
         Counter.builder("connector.requests.total")
-            .tag("connector", connectorType)
-            .tag("status", "error")
-            .tag("error_type", errorType)
-            .register(meterRegistry)
-            .increment();
+                .tag("connector", connectorType)
+                .tag("status", "error")
+                .tag("error_type", errorType)
+                .register(meterRegistry)
+                .increment();
 
         // 记录错误响应时间
         Timer.builder("connector.requests.duration")
-            .tag("connector", connectorType)
-            .tag("status", "error")
-            .description("Connector error request duration")
-            .register(meterRegistry)
-            .record(duration, java.util.concurrent.TimeUnit.MILLISECONDS);
+                .tag("connector", connectorType)
+                .tag("status", "error")
+                .description("Connector error request duration")
+                .register(meterRegistry)
+                .record(duration, java.util.concurrent.TimeUnit.MILLISECONDS);
 
         log.error("Metrics: Request to {} failed after {}ms, Error: {}",
-            connectorType, duration, errorType);
+                connectorType, duration, errorType);
     }
 
     /**
@@ -118,9 +118,9 @@ public class MetricsFilter<REQ extends RequestSpec, RESP extends ResponseSpec>
      */
     private void incrementActiveRequests(String connectorType) {
         meterRegistry.gauge("connector.requests.active",
-            io.micrometer.core.instrument.Tags.of("connector", connectorType),
-            1,
-            value -> value + 1);
+                io.micrometer.core.instrument.Tags.of("connector", connectorType),
+                1,
+                value -> value + 1);
     }
 
     /**
@@ -128,9 +128,9 @@ public class MetricsFilter<REQ extends RequestSpec, RESP extends ResponseSpec>
      */
     private void decrementActiveRequests(String connectorType) {
         meterRegistry.gauge("connector.requests.active",
-            io.micrometer.core.instrument.Tags.of("connector", connectorType),
-            1,
-            value -> value - 1);
+                io.micrometer.core.instrument.Tags.of("connector", connectorType),
+                1,
+                value -> value - 1);
     }
 
     /**

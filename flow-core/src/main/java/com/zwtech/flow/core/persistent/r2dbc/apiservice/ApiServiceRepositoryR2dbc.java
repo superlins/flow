@@ -1,4 +1,4 @@
-package com.zwtech.flow.domain.model.apiservice.r2dbc;
+package com.zwtech.flow.core.persistent.r2dbc.apiservice;
 
 import com.zwtech.flow.domain.model.apidatasource.DatasourceId;
 import com.zwtech.flow.domain.model.apiservice.ApiService;

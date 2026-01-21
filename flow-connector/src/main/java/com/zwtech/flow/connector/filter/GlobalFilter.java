@@ -10,5 +10,6 @@ import reactor.core.publisher.Mono;
  */
 public interface GlobalFilter<REQ extends RequestSpec, RESP extends ResponseSpec> {
 
-    Mono<ExecutionEnvelope<REQ, RESP>> filter(ExecutionEnvelope<REQ, RESP> envelope, ConnectorFilterChain chain);
+    Mono<ExecutionEnvelope<REQ, RESP>> filter(ExecutionEnvelope<REQ, RESP> envelope,
+            ConnectorFilterChain<REQ, RESP> chain);
 }

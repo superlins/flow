@@ -1,4 +1,4 @@
-package com.zwtech.flow.domain.model.apidatasource.r2dbc;
+package com.zwtech.flow.core.persistent.r2dbc.apidatasource;
 
 import com.zwtech.flow.domain.model.apidatasource.*;
 import com.zwtech.flow.domain.model.apidatasource.operation.DatasourceOperation;
@@ -16,9 +16,7 @@ import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 
 import java.time.Instant;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 /**
  * ApiDatasource 的持久化实体
@@ -162,7 +160,8 @@ public class ApiDatasourceEntity {
 
         // 基础信息
         DatasourceType datasourceType = type != null ? DatasourceType.valueOf(type) : null;
-        DatasourceStatus datasourceStatus = status != null ? DatasourceStatus.valueOf(status) : DatasourceStatus.DISABLED;
+        DatasourceStatus datasourceStatus = status != null ? DatasourceStatus.valueOf(status)
+                : DatasourceStatus.DISABLED;
 
         // 契约
         DatasourceContract datasourceContract = null;
@@ -200,8 +199,7 @@ public class ApiDatasourceEntity {
                             java.time.Duration.ofMillis(timeout),
                             java.time.Duration.ofSeconds(10),
                             java.time.Duration.ofSeconds(20),
-                            3
-                    );
+                            3);
                 } else {
                     // Create a default placeholder connection
                     connection = new com.zwtech.flow.domain.model.apidatasource.connection.HttpDatasourceConnection(
@@ -209,8 +207,7 @@ public class ApiDatasourceEntity {
                             java.time.Duration.ofSeconds(30),
                             java.time.Duration.ofSeconds(10),
                             java.time.Duration.ofSeconds(20),
-                            3
-                    );
+                            3);
                 }
             } else {
                 // Create a default HTTP connection
@@ -219,8 +216,7 @@ public class ApiDatasourceEntity {
                         java.time.Duration.ofSeconds(30),
                         java.time.Duration.ofSeconds(10),
                         java.time.Duration.ofSeconds(20),
-                        3
-                );
+                        3);
             }
         } catch (Exception e) {
             throw new RuntimeException("Failed to deserialize connection", e);
@@ -232,7 +228,8 @@ public class ApiDatasourceEntity {
             if (extension != null && !extension.isEmpty()) {
                 extensions = OBJECT_MAPPER.readValue(
                         extension,
-                        new TypeReference<List<Extension>>() {});
+                        new TypeReference<List<Extension>>() {
+                        });
             }
         } catch (Exception e) {
             throw new RuntimeException("Failed to deserialize extensions", e);
@@ -250,7 +247,6 @@ public class ApiDatasourceEntity {
                 connection,
                 extensions,
                 createdAt,
-                updatedAt
-        );
+                updatedAt);
     }
 }

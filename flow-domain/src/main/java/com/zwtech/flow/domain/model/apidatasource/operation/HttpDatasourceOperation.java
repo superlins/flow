@@ -204,31 +204,56 @@ public final class HttpDatasourceOperation implements DatasourceOperation {
 
     /**
      * 获取有效的 Headers 映射
-     * 优先返回结构化映射，如果未设置则返回空映射
+     * 优先返回结构化映射，如果未设置则尝试从模板字符串转换，最终回退到空映射
      */
     public MappingSpec getEffectiveHeadersMappings() {
-        return headersMappings != null ? headersMappings : MappingSpec.empty();
+        if (headersMappings != null) {
+            return headersMappings;
+        }
+        // 向后兼容：将字符串模板转为 MappingSpec
+        if (headersTemplate != null && !headersTemplate.isBlank()) {
+            return MappingSpec.ofExpression(headersTemplate);
+        }
+        return MappingSpec.empty();
     }
 
     /**
      * 获取有效的 Query Params 映射
      */
     public MappingSpec getEffectiveQueryParamsMappings() {
-        return queryParamsMappings != null ? queryParamsMappings : MappingSpec.empty();
+        if (queryParamsMappings != null) {
+            return queryParamsMappings;
+        }
+        if (queryParamsTemplate != null && !queryParamsTemplate.isBlank()) {
+            return MappingSpec.ofExpression(queryParamsTemplate);
+        }
+        return MappingSpec.empty();
     }
 
     /**
      * 获取有效的 Body 映射
      */
     public MappingSpec getEffectiveBodyMappings() {
-        return bodyMappings != null ? bodyMappings : MappingSpec.empty();
+        if (bodyMappings != null) {
+            return bodyMappings;
+        }
+        if (bodyTemplate != null && !bodyTemplate.isBlank()) {
+            return MappingSpec.ofExpression(bodyTemplate);
+        }
+        return MappingSpec.empty();
     }
 
     /**
      * 获取有效的 Response 映射
      */
     public MappingSpec getEffectiveResponseMappings() {
-        return responseMappings != null ? responseMappings : MappingSpec.empty();
+        if (responseMappings != null) {
+            return responseMappings;
+        }
+        if (responseBodyTemplate != null && !responseBodyTemplate.isBlank()) {
+            return MappingSpec.ofExpression(responseBodyTemplate);
+        }
+        return MappingSpec.empty();
     }
 
     // ========== ValueObject ==========

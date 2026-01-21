@@ -1,4 +1,4 @@
-package com.zwtech.flow.domain.model.apiservice.r2dbc;
+package com.zwtech.flow.core.persistent.r2dbc.apiservice;
 
 import org.springframework.data.r2dbc.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -8,7 +8,7 @@ import reactor.core.publisher.Mono;
 
 /**
  * ApiService 实体 Repository
- * 
+ *
  * @author renc
  */
 interface ApiServiceEntityRepository extends ReactiveCrudRepository<ApiServiceEntity, Long> {
@@ -24,16 +24,16 @@ interface ApiServiceEntityRepository extends ReactiveCrudRepository<ApiServiceEn
          */
         @Query("SELECT * FROM flw_api_service WHERE datasource_key_ = :key AND datasource_version_ = :version")
         Flux<ApiServiceEntity> findByDatasourceKeyAndVersion(
-                        @Param("key") String key,
-                        @Param("version") Integer version);
+                @Param("key") String key,
+                @Param("version") Integer version);
 
         /**
          * 检查是否存在引用指定 Datasource 的 Service
          */
         @Query("SELECT COUNT(*) > 0 FROM flw_api_service WHERE datasource_key_ = :key AND datasource_version_ = :version")
         Mono<Boolean> existsByDatasourceKeyAndVersion(
-                        @Param("key") String key,
-                        @Param("version") Integer version);
+                @Param("key") String key,
+                @Param("version") Integer version);
 
         @Query("SELECT * FROM flw_api_service ORDER BY updated_at_ DESC")
         Flux<ApiServiceEntity> findAllOrdered();

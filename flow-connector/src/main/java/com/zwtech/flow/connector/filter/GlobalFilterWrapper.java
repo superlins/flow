@@ -10,7 +10,7 @@ import reactor.core.publisher.Mono;
  * GlobalFilter 的包装器，将其适配为 ConnectorFilter 接口
  * 用于将 Spring Bean 的 GlobalFilter 参与到 PF4J 插件过滤器链中
  *
- * @param <REQ> RequestSpec 类型
+ * @param <REQ>  RequestSpec 类型
  * @param <RESP> ResponseSpec 类型
  * @author renc
  */
@@ -26,7 +26,8 @@ public class GlobalFilterWrapper<REQ extends RequestSpec, RESP extends ResponseS
     }
 
     @Override
-    public Mono<ExecutionEnvelope<REQ, RESP>> filter(ExecutionEnvelope<REQ, RESP> envelope, ConnectorFilterChain chain) {
+    public Mono<ExecutionEnvelope<REQ, RESP>> filter(ExecutionEnvelope<REQ, RESP> envelope,
+            ConnectorFilterChain<REQ, RESP> chain) {
         return delegate.filter(envelope, chain);
     }
 

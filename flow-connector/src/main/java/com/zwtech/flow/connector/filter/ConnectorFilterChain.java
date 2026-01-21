@@ -8,7 +8,7 @@ import reactor.core.publisher.Mono;
 /**
  * @author renc
  */
-public interface ConnectorFilterChain {
+public interface ConnectorFilterChain<REQ extends RequestSpec, RESP extends ResponseSpec> {
 
-    <REQ extends RequestSpec, RESP extends ResponseSpec> Mono<ExecutionEnvelope<REQ, RESP>> filter(ExecutionEnvelope<REQ, RESP> envelope);
+    Mono<ExecutionEnvelope<REQ, RESP>> filter(ExecutionEnvelope<REQ, RESP> envelope);
 }

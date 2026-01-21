@@ -1,4 +1,4 @@
-package com.zwtech.flow.domain.model.apidatasource.r2dbc;
+package com.zwtech.flow.core.persistent.r2dbc.apidatasource;
 
 import org.springframework.data.r2dbc.repository.Query;
 import org.springframework.data.repository.query.Param;

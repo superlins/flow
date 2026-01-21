@@ -10,6 +10,7 @@ import reactor.core.publisher.Mono;
  * @author renc
  */
 public interface ConnectorFilter<REQ extends RequestSpec, RESP extends ResponseSpec> extends ExtensionPoint {
-    
-    Mono<ExecutionEnvelope<REQ, RESP>> filter(ExecutionEnvelope<REQ, RESP> envelope, ConnectorFilterChain chain);
+
+    Mono<ExecutionEnvelope<REQ, RESP>> filter(ExecutionEnvelope<REQ, RESP> envelope,
+            ConnectorFilterChain<REQ, RESP> chain);
 }

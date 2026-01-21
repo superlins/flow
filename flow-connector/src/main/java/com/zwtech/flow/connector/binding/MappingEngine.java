@@ -2,10 +2,13 @@ package com.zwtech.flow.connector.binding;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.zwtech.flow.core.VariableContext;
 import com.zwtech.flow.core.parser.TemplateExpressionParser;
 import com.zwtech.flow.domain.shared.MappingSpec;
+import com.zwtech.flow.domain.shared.mapping.ExpressionNode;
+import com.zwtech.flow.domain.shared.mapping.MappingNode;
 import org.springframework.stereotype.Component;
 
 import java.util.Map;
@@ -48,12 +51,53 @@ public class MappingEngine {
             return OBJECT_MAPPER.createObjectNode();
         }
 
-        ObjectNode result = OBJECT_MAPPER.createObjectNode();
-        spec.fieldMappings().forEach((fieldName, expression) -> {
-            Object value = parseExpression(expression, context);
-            setNestedValue(result, fieldName, value);
-        });
-        return result;
+        // 递归处理 MappingNode
+        return applyMappingNode(spec.root(), context);
+    }
+
+    /**
+     * 递归应用 MappingNode
+     *
+     * @param node    映射节点
+     * @param context 变量上下文
+     * @return JsonNode
+     */
+    private JsonNode applyMappingNode(MappingNode node, VariableContext context) {
+        return switch (node) {
+            case ExpressionNode expr -> {
+                Object value = parseExpression(expr.expression(), context);
+                yield OBJECT_MAPPER.valueToTree(value);
+            }
+            case com.zwtech.flow.domain.shared.mapping.ObjectNode obj -> {
+                ObjectNode result = OBJECT_MAPPER.createObjectNode();
+                obj.fields().forEach((fieldName, fieldNode) -> {
+                    JsonNode fieldValue = applyMappingNode(fieldNode, context);
+                    result.set(fieldName, fieldValue);
+                });
+                yield result;
+            }
+            case com.zwtech.flow.domain.shared.mapping.ArrayNode arr -> {
+                ArrayNode result = OBJECT_MAPPER.createArrayNode();
+                if (arr.isStatic()) {
+                    // 静态数组：直接处理每个元素
+                    for (MappingNode element : arr.elements()) {
+                        result.add(applyMappingNode(element, context));
+                    }
+                } else if (arr.isDynamic()) {
+                    // 动态数组：循环处理
+                    Object loopSource = parseExpression(arr.loopExpression(), context);
+                    if (loopSource instanceof Iterable<?> items) {
+                        for (Object item : items) {
+                            // 创建子上下文，将 item 添加为 "item" 变量
+                            VariableContext itemContext = context.createChild();
+                            itemContext.setVariable("item", item);
+                            result.add(applyMappingNode(arr.itemTemplate(), itemContext));
+                        }
+                    }
+                }
+                yield result;
+            }
+        };
     }
 
     /**
@@ -92,43 +136,12 @@ public class MappingEngine {
     }
 
     /**
-     * 将 Map 形式的映射转换为 MappingSpec
+     * 将 Map 形式的映射转换为 MappingSpec（扁平化版本）
      *
      * @param mappings 字段映射 Map
      * @return MappingSpec 对象
      */
     public MappingSpec toMappingSpec(Map<String, String> mappings) {
-        return MappingSpec.of(mappings);
-    }
-
-    /**
-     * 设置嵌套路径的值
-     * <p>
-     * 支持如 "user.name" 的嵌套路径写入
-     *
-     * @param node      目标节点
-     * @param fieldPath 字段路径（支持点号分隔的嵌套路径）
-     * @param value     要设置的值
-     */
-    private void setNestedValue(ObjectNode node, String fieldPath, Object value) {
-        if (fieldPath.contains(".")) {
-            String[] parts = fieldPath.split("\\.", 2);
-            String parent = parts[0];
-            String child = parts[1];
-
-            JsonNode parentNode = node.get(parent);
-            if (parentNode == null || !parentNode.isObject()) {
-                parentNode = OBJECT_MAPPER.createObjectNode();
-                node.set(parent, parentNode);
-            }
-
-            setNestedValue((ObjectNode) parentNode, child, value);
-        } else {
-            if (value instanceof JsonNode jsonNode) {
-                node.set(fieldPath, jsonNode);
-            } else if (value != null) {
-                node.putPOJO(fieldPath, value);
-            }
-        }
+        return MappingSpec.ofFlat(mappings);
     }
 }
